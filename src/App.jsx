@@ -1,5 +1,5 @@
 import { HashRouter, Navigate, Route, Routes, useLocation } from 'react-router-dom'
-import { useEffect } from 'react'
+import { lazy, Suspense, useEffect } from 'react'
 import { AppProvider } from './context/AppContext.jsx'
 import AppLayout from './layouts/AppLayout.jsx'
 import Welcome from './pages/Welcome.jsx'
@@ -21,6 +21,8 @@ import ThankYou from './pages/ThankYou.jsx'
 import NotFound from './pages/NotFound.jsx'
 import LegalPage from './pages/LegalPage.jsx'
 import { recipeById } from './data/recipes.js'
+
+const Nearby = lazy(() => import('./pages/Nearby.jsx'))
 
 function RouteMetadata() {
   const { pathname } = useLocation()
@@ -60,6 +62,7 @@ function App() {
             <Route path="/favorites" element={<Favorites />} />
             <Route path="/shopping" element={<Shopping />} />
             <Route path="/profile" element={<Profile />} />
+            <Route path="/nearby" element={<Suspense fallback={<p className="route-loading" role="status">Loading nearby map…</p>}><Nearby /></Suspense>} />
             <Route path="/compare" element={<Comparison />} />
             <Route path="/help" element={<Help />} />
             <Route path="/thank-you" element={<ThankYou />} />

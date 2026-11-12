@@ -9,7 +9,8 @@ const navigation = [
   ['Saved recipes', '/favorites', '05'],
   ['Shopping list', '/shopping', '06'],
   ['My profile', '/profile', '07'],
-  ['Help & support', '/help', '08'],
+  ['Nearby places', '/nearby', '08'],
+  ['Help & support', '/help', '09'],
 ]
 
 export default function AppLayout() {
