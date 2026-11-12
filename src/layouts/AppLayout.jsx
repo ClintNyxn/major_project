@@ -1,5 +1,6 @@
 import { Link, NavLink, Outlet, useLocation } from 'react-router-dom'
 import { useApp } from '../context/useApp.js'
+import { useAuth } from '../context/useAuth.js'
 
 const navigation = [
   ['Dashboard', '/dashboard', '01'],
@@ -15,6 +16,7 @@ const navigation = [
 
 export default function AppLayout() {
   const { profile } = useApp()
+  const { user } = useAuth()
   const location = useLocation()
   const active = navigation.find(([, path]) => location.pathname.startsWith(path))
   return <div className="app-shell">
@@ -24,15 +26,25 @@ export default function AppLayout() {
       <nav className="sidebar-nav" aria-label="Main navigation">
         {navigation.map(([label, path, number]) => <NavLink key={path} to={path} className={({ isActive }) => `nav-item ${isActive || (path === '/recommendations' && location.pathname.startsWith('/recipe/')) ? 'active' : ''}`}><span className="nav-number">{number}</span><span>{label}</span></NavLink>)}
       </nav>
-      <div className="sidebar-bottom"><span className="sidebar-avatar">{profile.name?.trim().charAt(0).toUpperCase() || 'K'}</span><div><strong>{profile.name || 'Your kitchen'}</strong><small>Personal meal planner</small></div></div>
+      <div className="sidebar-bottom"><span className="sidebar-avatar">{profile.name?.trim().charAt(0).toUpperCase() || 'K'}</span><div><strong>{profile.name || 'Your kitchen'}</strong><small>{user?.email || 'Guest workspace'}</small></div></div>
     </aside>
     <div className="main-column">
       <header className="app-topbar">
-        <div className="topbar-context"><span className="status-dot" />Prototype workspace <span className="topbar-divider">/</span>{active?.[0] || 'Your meal plan'}</div>
-        <div className="topbar-right"><span className="sample-label">SAMPLE PRICES</span><span className="avatar-small">{profile.name?.trim().charAt(0).toUpperCase() || 'K'}</span></div>
+        <div className="topbar-context"><span className="status-dot" />Your kitchen <span className="topbar-divider">/</span>{active?.[0] || 'Your meal plan'}</div>
+        <div className="topbar-right"><span className="sample-label">SAMPLE PRICES</span>{user && <span className="account-label">{profile.name || user.email}</span>}<span className="avatar-small">{profile.name?.trim().charAt(0).toUpperCase() || 'K'}</span></div>
       </header>
+      {user && <SyncNotice />}
       <main className="page-content"><Outlet /></main>
       <footer className="app-footer"><span>KhaanaKya? · A thoughtful way to plan the next meal.</span><span><Link to="/privacy">Privacy</Link> · <Link to="/terms">Terms</Link> · Sample data, not medical advice</span></footer>
     </div>
+  </div>
+}
+
+function SyncNotice() {
+  const { syncError, syncStatus, retrySync } = useApp()
+  if (!syncError && syncStatus !== 'syncing') return null
+  return <div className={`sync-notice ${syncError ? 'has-error' : ''}`} role={syncError ? 'alert' : 'status'}>
+    <span>{syncError ? syncError : 'Saving your planner to your account…'}</span>
+    {syncError && <button type="button" onClick={() => retrySync().catch(() => {})}>Try again</button>}
   </div>
 }

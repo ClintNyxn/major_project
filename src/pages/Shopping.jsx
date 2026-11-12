@@ -5,7 +5,7 @@ import { useApp } from '../context/useApp.js'
 import { getIngredientCost } from '../utils/recipeMath.js'
 
 export default function Shopping() {
-  const { shopping, updateShoppingItem, removeShoppingItem, addCustomShopping } = useApp()
+  const { shopping, updateShoppingItem, removeShoppingItem, addCustomShopping, ingredientById } = useApp()
   const [customItem, setCustomItem] = useState('')
   const total = useMemo(() => shopping.filter((item) => !item.purchased).reduce((sum, item) => sum + Number(item.cost || 0), 0), [shopping])
   function add(event) {
@@ -22,7 +22,7 @@ export default function Shopping() {
         <div className="shopping-item-name"><strong>{item.name}</strong><small>{item.recipeName ? <Link to={`/recipe/${item.recipeId}`}>For {item.recipeName}</Link> : 'Added by you'}</small></div>
         <label className="shopping-quantity"><span className="sr-only">Quantity for {item.name}</span><input type="number" min="0.1" step="0.1" value={item.quantity} onChange={(event) => {
           const quantity = Number(event.target.value)
-          updateShoppingItem(item.id, { quantity, cost: getIngredientCost(item, quantity, item.unit) })
+          updateShoppingItem(item.id, { quantity, cost: getIngredientCost(item, quantity, item.unit, ingredientById) })
         }} /><span>{item.unit}</span></label>
         <strong className="shopping-cost">{item.cost ? `₹${Number(item.cost).toFixed(0)}` : 'No estimate'}</strong>
         <button className="remove-button" onClick={() => removeShoppingItem(item.id)} aria-label={`Remove ${item.name}`}>×</button>

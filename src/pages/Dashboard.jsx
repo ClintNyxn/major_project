@@ -2,15 +2,15 @@ import { Link } from 'react-router-dom'
 import PageHeader from '../components/PageHeader.jsx'
 import RecipeCard from '../components/RecipeCard.jsx'
 import { useApp } from '../context/useApp.js'
-import { ingredientById } from '../data/ingredients.js'
-import { recipeById } from '../data/recipes.js'
 import dashboardMeal from '../assets/dashboard-meal.svg'
 
 export default function Dashboard() {
   const app = useApp()
-  const recentlyViewed = app.viewed.map((id) => recipeById[id]).filter(Boolean).slice(0, 3)
-  const recentRecommendations = app.recentRecommendations.map((id) => recipeById[id]).filter(Boolean).slice(0, 3)
-  const saved = app.favorites.map((id) => recipeById[id]).filter(Boolean).slice(0, 2)
+  const recentlyViewed = app.viewed.map((id) => app.recipeById[id]).filter(Boolean).slice(0, 3)
+  const recentRecommendations = app.recentRecommendations.map((id) => app.recipeById[id]).filter(Boolean).slice(0, 3)
+  const saved = app.favorites.map((id) => app.recipeById[id]).filter(Boolean).slice(0, 2)
+  if (app.catalogStatus === 'loading') return <main className="loading-view" role="status">Loading your food catalog…</main>
+  if (app.catalogStatus === 'error') return <div className="error-panel" role="alert"><div><strong>Your food catalog is unavailable.</strong><p>{app.catalogError}</p></div><button className="button button-outline" type="button" onClick={app.retryCatalog}>Try again</button></div>
   return <div>
     <PageHeader eyebrow="YOUR KITCHEN, AT A GLANCE" title={`Good to see you${app.profile.name ? `, ${app.profile.name.split(' ')[0]}` : ''}.`} description="A little less wondering what to cook. A little more making something good." action={<Link className="button button-primary" to="/setup/ingredients">Find recipes <span aria-hidden="true">→</span></Link>} />
     <section className="dashboard-spotlight">
@@ -19,7 +19,7 @@ export default function Dashboard() {
     </section>
     <div className="dashboard-split">
       <section className="dashboard-section"><div className="section-title-row"><div><p className="eyebrow">WHAT'S IN YOUR KITCHEN?</p><h2>Your ingredients</h2></div><Link to="/ingredients" className="text-link">Edit list →</Link></div>
-        <div className="ingredient-summary-list">{app.ingredients.length ? app.ingredients.slice(0, 12).map((item) => <span className="ingredient-token" key={item.id}>{item.name || ingredientById[item.id]?.name || item.id}</span>) : <p className="muted">Add a few ingredients to get more relevant recipe matches.</p>}{app.ingredients.length > 12 && <span className="ingredient-token">+{app.ingredients.length - 12} more</span>}</div>
+        <div className="ingredient-summary-list">{app.ingredients.length ? app.ingredients.slice(0, 12).map((item) => <span className="ingredient-token" key={item.id}>{item.name || app.ingredientById[item.id]?.name || item.id}</span>) : <p className="muted">Add a few ingredients to get more relevant recipe matches.</p>}{app.ingredients.length > 12 && <span className="ingredient-token">+{app.ingredients.length - 12} more</span>}</div>
         <div className="dashboard-inline-note">{app.pantryAlwaysAvailable ? 'Pantry basics are counted as available.' : 'Pantry basics are not included in your ingredient matches.'}</div>
       </section>
       <section className="dashboard-section"><div className="section-title-row"><div><p className="eyebrow">YOUR STARTING POINT</p><h2>Meal preferences</h2></div><Link to="/preferences" className="text-link">Edit →</Link></div>

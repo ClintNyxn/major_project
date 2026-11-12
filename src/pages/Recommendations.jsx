@@ -15,10 +15,11 @@ const sorters = {
 const EMPTY_RESULTS = []
 
 export default function Recommendations() {
-  const { profile, preferences, ingredients, servings, pantryAlwaysAvailable, compared, setRecentRecommendations } = useApp()
+  const { profile, preferences, ingredients, servings, pantryAlwaysAvailable, compared, setRecentRecommendations, catalogRecipes, catalogStatus, catalogError, retryCatalog, ingredientById, ingredientAliases } = useApp()
   const [searchParams] = useSearchParams()
   const initialCategory = searchParams.get('category') || ''
   const input = useMemo(() => ({ profile, preferences, ingredients, servings, pantryAlwaysAvailable }), [profile, preferences, ingredients, servings, pantryAlwaysAvailable])
+  const catalog = useMemo(() => ({ recipes: catalogRecipes, ingredientById, ingredientAliases }), [catalogRecipes, ingredientById, ingredientAliases])
   const [retryToken, setRetryToken] = useState(0)
   const [request, setRequest] = useState({ key: '', status: 'loading', results: [], error: '' })
   const [filters, setFilters] = useState({ category: initialCategory, cuisine: '', maxTime: '', minMatch: 0, maxCost: '', maxCalories: '', minProtein: '', difficulty: '', sort: 'Best match' })
@@ -26,8 +27,9 @@ export default function Recommendations() {
   const requestKey = `${JSON.stringify(input)}:${retryToken}`
 
   useEffect(() => {
+    if (catalogStatus !== 'success') return undefined
     let active = true
-    getRecommendations(input).then((data) => {
+    getRecommendations(input, catalog).then((data) => {
       if (active) {
         setRequest({ key: requestKey, status: 'success', results: data, error: '' })
         setRecentRecommendations(data.map((recipe) => recipe.id))
@@ -37,11 +39,11 @@ export default function Recommendations() {
       if (active) setRequest({ key: requestKey, status: 'error', results: [], error: requestError.message || 'Recommendations could not be loaded. Please try again.' })
     })
     return () => { active = false }
-  }, [input, requestKey, setRecentRecommendations])
+  }, [catalog, catalogStatus, input, requestKey, setRecentRecommendations])
 
-  const loading = request.key !== requestKey || request.status === 'loading'
+  const loading = catalogStatus === 'loading' || (catalogStatus === 'success' && (request.key !== requestKey || request.status === 'loading'))
   const results = loading || request.status !== 'success' ? EMPTY_RESULTS : request.results
-  const error = !loading && request.status === 'error' ? request.error : ''
+  const error = catalogStatus === 'error' ? catalogError : !loading && request.status === 'error' ? request.error : ''
 
   const filtered = useMemo(() => results.filter((recipe) =>
     (!filters.category || recipe.category === filters.category)
@@ -55,10 +57,13 @@ export default function Recommendations() {
   ).sort(sorters[filters.sort]), [filters, preferences.budgetScope, results])
 
   const selectedRecipeCount = compared.length
-  const retry = () => setRetryToken((current) => current + 1)
+  const retry = () => {
+    if (catalogStatus !== 'success') retryCatalog()
+    else setRetryToken((current) => current + 1)
+  }
 
   return <div className="results-page">
-    <div className="results-top"><Link to="/dashboard" className="back-link">← Workspace</Link><span className="sample-label">SAMPLE RECOMMENDATIONS</span></div>
+    <div className="results-top"><Link to="/dashboard" className="back-link">← Workspace</Link><span className="sample-label">SUPABASE CATALOG · ESTIMATES</span></div>
     <PageHeader eyebrow="MADE FOR YOUR KITCHEN" title="Here's what you can make." description="Recipes ranked by ingredient match, your preferences and estimated cost. Match is a recipe fit score, not a confidence score." action={<Link className="button button-outline" to="/ingredients">Edit ingredients</Link>} />
     <div className="recommendation-summary">
       <div><small>FOOD PREFERENCE</small><strong>{preferences.foodType}</strong></div>
@@ -73,7 +78,7 @@ export default function Recommendations() {
       <span className="results-count">{filtered.length} recipe{filtered.length === 1 ? '' : 's'}</span>
     </div>
     {expandedFilters && <div className="filters-panel">
-      <label>Meal<select value={filters.category} onChange={(event) => setFilters({ ...filters, category: event.target.value })}><option value="">All meals</option>{['Breakfast', 'Lunch', 'Dinner', 'Snacks'].map((item) => <option key={item}>{item}</option>)}</select></label>
+      <label>Meal<select value={filters.category} onChange={(event) => setFilters({ ...filters, category: event.target.value })}><option value="">All meals</option>{['Breakfast', 'Lunch', 'Dinner', 'Snacks', 'Sweets'].map((item) => <option key={item}>{item}</option>)}</select></label>
       <label>Cuisine<select value={filters.cuisine} onChange={(event) => setFilters({ ...filters, cuisine: event.target.value })}><option value="">All cuisines</option>{[...new Set(results.map((item) => item.cuisine))].sort().map((item) => <option key={item}>{item}</option>)}</select></label>
       <label>Ready within<select value={filters.maxTime} onChange={(event) => setFilters({ ...filters, maxTime: event.target.value })}><option value="">Any time</option><option value="20">20 minutes</option><option value="30">30 minutes</option><option value="45">45 minutes</option></select></label>
       <label>Minimum match<select value={filters.minMatch} onChange={(event) => setFilters({ ...filters, minMatch: event.target.value })}><option value="0">Any match</option><option value="50">50%+</option><option value="75">75%+</option><option value="100">100%</option></select></label>

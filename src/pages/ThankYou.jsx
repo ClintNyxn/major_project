@@ -1,13 +1,12 @@
 import { Link, useLocation } from 'react-router-dom'
 import PageHeader from '../components/PageHeader.jsx'
 import { useApp } from '../context/useApp.js'
-import { recipeById } from '../data/recipes.js'
 
 export default function ThankYou() {
   const app = useApp()
   const location = useLocation()
   const saved = location.state?.saved
-  const recipe = recipeById[location.state?.recipeId]
+  const recipe = app.recipeById[location.state?.recipeId]
   const pending = app.shopping.filter((item) => !item.purchased)
   const estimate = pending.reduce((total, item) => total + Number(item.cost || 0), 0)
   return <div><PageHeader eyebrow="A LITTLE PLANNING GOES A LONG WAY" title={saved ? 'Your recipe is saved.' : recipe ? 'Your meal plan is ready.' : 'Your plan is ready.'} description={saved ? 'We kept your recipe in Saved Recipes so you can return to it later.' : 'Your chosen recipe and anything missing from your kitchen, gathered in one place.'} />

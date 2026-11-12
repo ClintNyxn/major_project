@@ -2,22 +2,22 @@ import { Link } from 'react-router-dom'
 import { useApp } from '../context/useApp.js'
 import { getRecipeCosts } from '../utils/recipeMath.js'
 import { getAvailability } from '../utils/recipeMath.js'
-import { ingredientById } from '../data/ingredients.js'
+import fallbackImage from '../assets/dashboard-meal.svg'
 
 export default function RecipeCard({ recipe, showActions = true }) {
-  const { favorites, toggleFavorite, compared, toggleCompare, servings, ingredients, pantryAlwaysAvailable } = useApp()
+  const { favorites, toggleFavorite, compared, toggleCompare, servings, ingredients, pantryAlwaysAvailable, ingredientById } = useApp()
   const saved = favorites.includes(recipe.id)
   const selected = compared.includes(recipe.id)
-  const availability = recipe.available ? { available: recipe.available, missing: recipe.missing || [] } : getAvailability(recipe, ingredients, pantryAlwaysAvailable ? ['oil', 'salt', 'spices'] : [])
+  const availability = recipe.available ? { available: recipe.available, missing: recipe.missing || [] } : getAvailability(recipe, ingredients, pantryAlwaysAvailable ? ['oil', 'salt', 'spices'] : [], ingredientById)
   const match = recipe.match ?? availability.match
-  const costs = recipe.costs || getRecipeCosts(recipe, servings)
+  const costs = recipe.costs || getRecipeCosts(recipe, servings, ingredientById)
   const cost = costs.total
   const missingNames = availability.missing.map((item) => ingredientById[item.ingredientId]?.name || item.ingredientId)
 
   return (
     <article className="recipe-card">
       <Link to={`/recipe/${recipe.id}`} className="recipe-image-link" aria-label={`View ${recipe.name}`}>
-        <img className="recipe-image" src={recipe.image} alt={recipe.name} loading="lazy" />
+        <img className="recipe-image" src={recipe.image || fallbackImage} alt={recipe.name} loading="lazy" />
         <span className="image-label">{match}% ingredient match</span>
       </Link>
       <div className="recipe-card-body">

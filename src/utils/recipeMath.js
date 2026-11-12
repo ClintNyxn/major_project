@@ -1,19 +1,23 @@
-import { ingredientById } from '../data/ingredients.js'
+import { legacyIngredientAliases } from '../services/catalogService.js'
 
-export function getIngredientCost(item, quantity, unit = item.unit || 'g') {
-  const ingredient = ingredientById[item.ingredientId || item.id]
-  if (!ingredient) return 0
-  const price = item.price ?? ingredient.price
-  const priceUnit = ingredient.priceUnit
-  if (priceUnit === 'piece' || priceUnit === 'loaf') return price * quantity
-  if (unit === 'piece' && priceUnit === 'kg') return price * quantity * 150 / 1000
-  if (unit === 'piece' && priceUnit === 'litre') return price * quantity * 240 / 1000
-  if ((unit === 'ml' || unit === 'litre') && priceUnit === 'litre') return price * quantity / (unit === 'ml' ? 1000 : 1)
-  if (unit === 'g' || unit === 'kg') return price * quantity / (unit === 'g' ? 1000 : 1)
-  return price * quantity / 1000
+function gramsFor(quantity, unit, ingredient = {}) {
+  if (unit === 'g') return quantity
+  if (unit === 'kg') return quantity * 1000
+  if (unit === 'ml') return quantity * (ingredient.grams_per_ml || 1)
+  if (unit === 'litre' || unit === 'l') return quantity * 1000 * (ingredient.grams_per_ml || 1)
+  if (unit === 'piece') return quantity * (ingredient.grams_per_piece || 1)
+  if (unit === 'cup') return quantity * 200
+  return 0
 }
 
-export function getRecipeCosts(recipe, servings) {
+export function getIngredientCost(item, quantity, unit = item.unit || 'g', ingredientById = {}) {
+  const ingredient = ingredientById[item.ingredientId || item.id]
+  if (!ingredient) return 0
+  const pricePerKg = item.price ?? ingredient.price_per_kg_inr ?? ingredient.price
+  return pricePerKg * gramsFor(quantity, unit, ingredient) / 1000
+}
+
+export function getRecipeCosts(recipe, servings, ingredientById = {}) {
   const multiplier = servings / recipe.servings
   const lineItems = recipe.ingredients.map((item) => {
     const quantity = item.quantity * multiplier
@@ -22,7 +26,7 @@ export function getRecipeCosts(recipe, servings) {
       ...item,
       quantity,
       name: ingredient?.name ?? item.ingredientId,
-      cost: getIngredientCost(item, quantity, item.unit),
+      cost: getIngredientCost(item, quantity, item.unit, ingredientById),
     }
   })
   const total = lineItems.reduce((sum, item) => sum + item.cost, 0)
@@ -33,39 +37,26 @@ export function getRecipeCosts(recipe, servings) {
   }
 }
 
-function quantityInRecipeUnit(entry, recipeItem, ingredient) {
-  if (entry.quantity == null || !entry.unit) return Number.POSITIVE_INFINITY
-  const quantity = Number(entry.quantity)
-  if (entry.unit === recipeItem.unit) return quantity
-  if (entry.unit === 'kg' && recipeItem.unit === 'g') return quantity * 1000
-  if (entry.unit === 'g' && recipeItem.unit === 'kg') return quantity / 1000
-  if (entry.unit === 'litre' && recipeItem.unit === 'ml') return quantity * 1000
-  if (entry.unit === 'ml' && recipeItem.unit === 'litre') return quantity / 1000
-  if (entry.unit === 'cup') return quantity * (recipeItem.unit === 'ml' ? 240 : 200)
-  if (entry.unit === 'piece' && recipeItem.unit === 'g' && ingredient?.priceUnit === 'kg') return quantity * 150
-  if (entry.unit === 'piece' && recipeItem.unit === 'ml' && ingredient?.priceUnit === 'litre') return quantity * 240
-  if (entry.unit === 'ml' && recipeItem.unit === 'g') return quantity
-  if (entry.unit === 'g' && recipeItem.unit === 'ml') return quantity
-  return 0
-}
-
-export function getAvailability(recipe, selectedIngredients, pantryIds = []) {
+export function getAvailability(recipe, selectedIngredients, pantryIds = [], ingredientById = {}) {
   const selected = new Map(selectedIngredients.map((entry) => {
     const item = typeof entry === 'string' ? { id: entry } : entry
-    return [item.id || item.ingredientId, item]
+    const id = item.id || item.ingredientId
+    return [legacyIngredientAliases[id] || id, item]
   }))
-  const pantry = new Set(pantryIds)
-  const available = recipe.ingredients.filter((item) => {
+  const pantry = new Set(pantryIds.map((id) => legacyIngredientAliases[id] || id))
+  const required = recipe.ingredients.filter((item) => !item.optional)
+  const available = required.filter((item) => {
     if (pantry.has(item.ingredientId)) return true
     const entry = selected.get(item.ingredientId)
-    if (!entry) return false
-    return quantityInRecipeUnit(entry, item, ingredientById[item.ingredientId]) >= item.quantity
+    if (!entry || entry.quantity == null || !entry.unit) return false
+    const ingredient = ingredientById[item.ingredientId]
+    return gramsFor(Number(entry.quantity), entry.unit, ingredient)
+      >= gramsFor(item.quantity, item.unit, ingredient)
   })
-  const availableItemIds = new Set(available.map((item) => item.ingredientId))
-  const missing = recipe.ingredients.filter((item) => !availableItemIds.has(item.ingredientId))
+  const availableIds = new Set(available.map((item) => item.ingredientId))
   return {
-    available,
-    missing,
-    match: recipe.ingredients.length ? Math.round((available.length / recipe.ingredients.length) * 100) : 0,
+    available: [...available, ...recipe.ingredients.filter((item) => item.optional)],
+    missing: required.filter((item) => !availableIds.has(item.ingredientId)),
+    match: required.length ? Math.round((available.length / required.length) * 100) : 0,
   }
 }

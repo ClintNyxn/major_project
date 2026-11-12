@@ -1,8 +1,8 @@
 import { Link } from 'react-router-dom'
 import PageHeader from '../components/PageHeader.jsx'
 import { useApp } from '../context/useApp.js'
-import { recipeById } from '../data/recipes.js'
 import { getAvailability, getRecipeCosts } from '../utils/recipeMath.js'
+import fallbackImage from '../assets/dashboard-meal.svg'
 
 const metrics = ['Calories per serving', 'Protein', 'Carbohydrates', 'Fat', 'Fibre', 'Estimated recipe cost', 'Preparation time', 'Ingredient match']
 
@@ -12,9 +12,9 @@ function metricNumber(label, recipe, app) {
   if (label === 'Carbohydrates') return recipe.nutrition.carbs
   if (label === 'Fat') return recipe.nutrition.fat
   if (label === 'Fibre') return recipe.nutrition.fibre
-  if (label === 'Estimated recipe cost') return getRecipeCosts(recipe, app.servings).total
+  if (label === 'Estimated recipe cost') return getRecipeCosts(recipe, app.servings, app.ingredientById).total
   if (label === 'Preparation time') return recipe.prepTime + recipe.cookTime
-  return getAvailability(recipe, app.ingredients, app.pantryAlwaysAvailable ? ['oil', 'salt', 'spices'] : []).match
+  return getAvailability(recipe, app.ingredients, app.pantryAlwaysAvailable ? ['oil', 'salt', 'spices'] : [], app.ingredientById).match
 }
 
 function metricValue(label, recipe, app) {
@@ -45,11 +45,13 @@ function isRelevantBest(label, recipe, candidates, app) {
 export default function Comparison() {
   const app = useApp()
   const { compared, toggleCompare } = app
-  const selected = compared.map((id) => recipeById[id]).filter(Boolean)
+  const selected = compared.map((id) => app.recipeById[id]).filter(Boolean)
+  if (app.catalogStatus === 'loading') return <main className="loading-view" role="status">Loading recipe comparisons…</main>
+  if (app.catalogStatus === 'error') return <div className="error-panel" role="alert"><div><strong>Recipe comparisons are unavailable.</strong><p>{app.catalogError}</p></div><button className="button button-outline" type="button" onClick={app.retryCatalog}>Try again</button></div>
   return <div><PageHeader eyebrow="SIDE BY SIDE, NO GUESSWORK" title="Compare your options." description="Nutrition values are per serving. What suits you depends on the goals you've chosen." action={<span className="sample-label">ESTIMATES · NOT MEDICAL ADVICE</span>} />
     {!selected.length ? <div className="empty-state"><p className="eyebrow">YOUR COMPARISON IS EMPTY</p><h2>Choose up to three recipes.</h2><p>Select Compare on a recipe card, then return here to weigh up your options.</p><Link className="button button-primary" to="/recommendations">Browse recommendations →</Link></div> : <div className="comparison-wrap">
       <p className="tiny-note">{selected.length} of 3 recipe{selected.length === 1 ? '' : 's'} selected · cooking for {app.servings}</p>
-      <div className="comparison-scroll"><table className="comparison-table"><thead><tr><th>Per recipe</th>{selected.map((recipe) => <th key={recipe.id}><div className="comparison-recipe"><img src={recipe.image} alt="" /><span>{recipe.name}</span><button className="remove-compare" onClick={() => toggleCompare(recipe.id)} aria-label={`Remove ${recipe.name} from comparison`}>Remove</button></div></th>)}</tr></thead><tbody>
+      <div className="comparison-scroll"><table className="comparison-table"><thead><tr><th>Per recipe</th>{selected.map((recipe) => <th key={recipe.id}><div className="comparison-recipe"><img src={recipe.image || fallbackImage} alt="" /><span>{recipe.name}</span><button className="remove-compare" onClick={() => toggleCompare(recipe.id)} aria-label={`Remove ${recipe.name} from comparison`}>Remove</button></div></th>)}</tr></thead><tbody>
         {metrics.map((label) => <tr key={label}><th>{label}</th>{selected.map((recipe) => {
           const current = metricValue(label, recipe, app)
           const best = isRelevantBest(label, recipe, selected, app)
