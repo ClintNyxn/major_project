@@ -1,7 +1,9 @@
 import { createClient } from '@supabase/supabase-js'
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL?.trim()
-const supabaseAnonKey = (import.meta.env.VITE_SUPABASE_ANON_KEY || import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY)?.trim()
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY?.trim()
+  || import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY?.trim()
+const isElectronRenderer = typeof window !== 'undefined' && Boolean(window.khaanakyaDesktop)
 
 let client = null
 let configError = ''
@@ -15,7 +17,7 @@ if (!supabaseUrl && !supabaseAnonKey) {
     client = createClient(supabaseUrl, supabaseAnonKey, {
       auth: {
         autoRefreshToken: true,
-        detectSessionInUrl: true,
+        detectSessionInUrl: !isElectronRenderer,
         flowType: 'pkce',
         persistSession: true,
       },

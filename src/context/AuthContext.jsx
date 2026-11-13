@@ -2,19 +2,21 @@ import { useEffect, useMemo, useState } from 'react'
 import { AuthContext } from './authContext.js'
 import { supabase as configuredClient, supabaseConfigError } from '../services/supabaseClient.js'
 import { leaveGuestMode } from '../utils/guestMode.js'
+import { completeSupabaseAuthCallback } from '../utils/authCallback.js'
 
-const browserAuthAvailable = typeof window !== 'undefined' && window.location.protocol !== 'file:'
-const supabase = browserAuthAvailable ? configuredClient : null
-const configError = browserAuthAvailable
-  ? supabaseConfigError
-  : 'Account sign-in is available in the web app. Continue as a guest in the packaged desktop app.'
+const supabase = configuredClient
+const configError = supabaseConfigError
 
 function unavailableError() {
   return new Error(configError || 'Account sign-in is unavailable in this app.')
 }
 
-function redirectUrl() {
-  return import.meta.env.VITE_SUPABASE_REDIRECT_URL?.trim() || window.location.origin
+function redirectUrl(flowType) {
+  const configuredRedirect = import.meta.env.VITE_SUPABASE_REDIRECT_URL?.trim()
+  const defaultRedirect = window.khaanakyaDesktop ? 'khaanakya://auth/callback' : window.location.origin
+  const callback = new URL(configuredRedirect || defaultRedirect, window.location.href)
+  if (flowType) callback.searchParams.set('type', flowType)
+  return callback.toString()
 }
 
 export function AuthProvider({ children }) {
@@ -43,6 +45,18 @@ export function AuthProvider({ children }) {
       if (event === 'PASSWORD_RECOVERY') window.location.hash = '/auth/update-password'
     })
 
+    const unsubscribeDeepLinks = window.khaanakyaDesktop?.onAuthDeepLink((callbackUrl) => {
+      completeSupabaseAuthCallback(supabase, callbackUrl).then((result) => {
+        if (!active) return
+        if (result.session) setSession(result.session)
+        if (result.type === 'recovery') window.location.hash = '/auth/update-password'
+        setSessionError('')
+      }).catch((error) => {
+        if (!active) return
+        setSessionError(`Could not finish the sign-in link: ${error.message}`)
+      })
+    })
+
     supabase.auth.getSession().then(({ data, error }) => {
       if (!active) return
       if (error) setSessionError(`Could not restore your sign-in session: ${error.message}`)
@@ -57,6 +71,7 @@ export function AuthProvider({ children }) {
     return () => {
       active = false
       subscription.unsubscribe()
+      unsubscribeDeepLinks?.()
     }
   }, [])
 
@@ -95,7 +110,7 @@ export function AuthProvider({ children }) {
     },
     resetPassword: async (email) => {
       if (!supabase) throw unavailableError()
-      const { error } = await supabase.auth.resetPasswordForEmail(email.trim().toLowerCase(), { redirectTo: redirectUrl() })
+      const { error } = await supabase.auth.resetPasswordForEmail(email.trim().toLowerCase(), { redirectTo: redirectUrl('recovery') })
       if (error) throw error
     },
     updatePassword: async (password) => {

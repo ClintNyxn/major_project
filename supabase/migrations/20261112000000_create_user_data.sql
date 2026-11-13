@@ -23,7 +23,12 @@ create policy "Users can update their own planner data"
   using ((select auth.uid()) = user_id)
   with check ((select auth.uid()) = user_id);
 
+drop policy if exists "Users can delete their own planner data" on public.user_data;
+create policy "Users can delete their own planner data"
+  on public.user_data for delete to authenticated
+  using ((select auth.uid()) = user_id);
+
 revoke all on public.user_data from anon;
-grant select, insert, update on public.user_data to authenticated;
+grant select, insert, update, delete on public.user_data to authenticated;
 
 notify pgrst, 'reload schema';

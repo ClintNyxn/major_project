@@ -12,7 +12,7 @@
     "typecheck": "tsc --noEmit",
     "test": "node --test",
     "db:setup": "node scripts/dbSetup.js",
-    "db:push:remote": "supabase db push --remote=qzgzmpqsoirpewokocjj --yes",
+    "db:push:remote": "supabase db push --yes",
     "db:seed": "node supabase/seed/seedCatalog.js",
     "db:validate": "node scripts/validateFoodData.js",
     "preview": "vite preview",
@@ -54,7 +54,15 @@
       "package.json"
     ],
     "mac": {
-      "category": "public.app-category.food-and-drink"
+      "category": "public.app-category.food-and-drink",
+      "protocols": [
+        {
+          "name": "KhaanaKya Authentication",
+          "schemes": [
+            "khaanakya"
+          ]
+        }
+      ]
     },
     "win": {
       "target": "nsis"

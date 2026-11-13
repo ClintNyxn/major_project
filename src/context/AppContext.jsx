@@ -195,13 +195,6 @@ export function AppProvider({ children }) {
         if (!remote || cached?.dirty || JSON.stringify(remoteState) !== JSON.stringify(nextState)) {
           try {
             updatedAt = await saveAccountData(client, userId, nextState)
-            if (!remote) {
-              try {
-                window.localStorage.removeItem(STORAGE_KEY)
-              } catch (error) {
-                console.error('Could not clear the imported guest data from this device.', error)
-              }
-            }
           } catch (error) {
             if (!active) return
             const cacheError = writeAccountCache(userId, { state: nextState, dirty: true, baseUpdatedAt: updatedAt })

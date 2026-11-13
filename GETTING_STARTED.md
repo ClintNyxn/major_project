@@ -14,7 +14,7 @@ npm run electron:dev
 
 `db:setup` resets the local database before setup; use it for initial setup or when you are comfortable replacing local database contents. To reseed the catalog without resetting or check it independently, run `npm run db:seed` or `npm run db:validate`.
 
-For the hosted Supabase project, sign in the Supabase CLI and run `npm run db:push:remote`. This applies pending migrations without resetting the database; it creates the account-owned `user_data` table and the recipe catalog. Then seed and validate the catalog with `DATABASE_URL` set to the hosted Postgres connection string: `npm run db:seed` and `npm run db:validate`. Keep the database password out of committed files and browser `VITE_` variables.
+For a hosted Supabase project, apply the migrations in order, then seed and validate the recipe catalog using `DATABASE_URL` and `npm run db:seed` / `npm run db:validate`. Never put the database password in browser `VITE_` variables.
 
 ## Build
 
@@ -30,17 +30,41 @@ Electron Builder writes a platform-specific package to `release/`. The macOS pac
 
 ## Accounts and cloud sync
 
-Email/password accounts and planner sync use Supabase Auth and Postgres.
+Email/password accounts and planner sync use Supabase Auth and Postgres. The application stores each account's complete planner state (profile, preferences, ingredient quantities, favorites, comparisons, recent recipes, and shopping list) in a single `public.user_data` JSONB row keyed by the authenticated user ID. That matches the existing app model; it does not create separate profile, recipe, shopping-list, or preference tables. The recipe and ingredient catalog is shared, read-only data in separate tables.
 
-The local `npm run db:setup` flow applies the account and catalog migrations together. For a hosted deployment, configure `VITE_SUPABASE_URL` and either `VITE_SUPABASE_ANON_KEY` or `VITE_SUPABASE_PUBLISHABLE_KEY` in `.env.local`, then use `npm run db:push:remote` to apply migrations non-destructively. If your network reports that IPv6 is unsupported, copy the actual Session Pooler URI from the project's Connect menu and run `npx supabase db push --remote="<full session pooler URI>" --yes`; replace the example text with the full URI, and never commit the URI or its database password. The browser key is public; never put a `service_role` key in a `VITE_` variable. In Supabase Auth URL Configuration, set the local Site URL to `http://localhost:5173` and allow your local and deployed web-app origins as redirect URLs. Keep email confirmation enabled and configure a production SMTP provider in the Supabase project's Auth settings before inviting real users; Supabase's built-in email service is restricted and rate-limited. `VITE_SUPABASE_REDIRECT_URL` can override the default current origin for a deployed site.
+### Create and configure a hosted Supabase project
 
-The first account created on a device imports that device's existing planner data after its first successful sign-in. Guest mode remains available and keeps data on the device. Authenticated planner data is stored in the account's Supabase row and cached separately on that device. The packaged Electron app remains usable in guest mode; email-link callbacks are configured for the web app.
+1. Create a project in the Supabase dashboard and wait for its database to finish provisioning.
+2. In **Project Settings → API** (or **API Keys**, depending on the dashboard version), copy the **Project URL** and a **publishable** (`sb_publishable_...`) or legacy **anon/public** key. Never use the `service_role` or secret key in this frontend.
+3. In the project's **SQL Editor**, run the contents of these existing migrations in timestamp order:
+   - [`supabase/migrations/20261112000000_create_user_data.sql`](./supabase/migrations/20261112000000_create_user_data.sql) creates the account-data table and owner-only RLS policies.
+   - [`supabase/migrations/20261112010000_create_recipe_catalog.sql`](./supabase/migrations/20261112010000_create_recipe_catalog.sql) creates the public read-only recipe catalog and nutrition view.
+4. Seed the catalog from a trusted development machine. Use the project's **Session pooler** connection string (not a browser variable) as `DATABASE_URL`, then run `npm run db:seed` and `npm run db:validate`. Do not paste the connection string or its password into source control, `.env`, or chat. The seed command is an upsert for catalog rows; it does not create user data.
+5. In **Authentication → URL Configuration**, set the Site URL to `http://localhost:5173`. Add these redirect URLs to the allow list: `http://localhost:5173/**`, `http://127.0.0.1:5173/**`, and `khaanakya://auth/callback`.
+6. In **Authentication → Providers**, enable Email. Configure SMTP before inviting real users; Supabase's default email service is restricted and rate-limited.
+
+Create a local `.env` or `.env.local` in the project root (both are ignored by git). The public anon key and publishable key are alternatives; configure one:
+
+```dotenv
+VITE_SUPABASE_URL=https://YOUR_PROJECT_REF.supabase.co
+VITE_SUPABASE_ANON_KEY=YOUR_PUBLIC_ANON_KEY
+# Or, instead of VITE_SUPABASE_ANON_KEY:
+# VITE_SUPABASE_PUBLISHABLE_KEY=sb_publishable_YOUR_PUBLIC_KEY
+# Leave unset to use the current web origin or Electron's khaanakya://auth/callback link:
+# VITE_SUPABASE_REDIRECT_URL=
+```
+
+Restart Vite/Electron after changing environment variables. `VITE_` values are shipped to the renderer; use only the public key. The SQL migrations can be applied manually as above, or with the Supabase CLI after linking it to your own project (`npx supabase link --project-ref YOUR_PROJECT_REF`, then `npm run db:push:remote`). The script does not reset a hosted database.
+
+Sign-up, login, logout, session restoration, password reset and email verification use Supabase Auth. The first successful account sign-in copies existing guest planner state into that account without deleting the device's guest copy. Later account changes are synced to `user_data` and cached locally. Electron uses a registered `khaanakya://auth/callback` deep link for confirmation and password-reset links; the project must allow that redirect URL. Build/reinstall the desktop app after changing its protocol configuration.
+
+Guest planner data remains on the device. Without a configured Supabase project (or a local Supabase stack created with `npm run db:setup`), account features and the remote recipe/ingredient catalog are unavailable; guest-only data remains local, but recipe browsing requires the catalog connection.
 
 ## Integrations
 
 - **Recipes and recommendations:** 120 Indian-first recipes and 410 ingredients are loaded from the normalized Supabase catalog. Matching is deterministic and explainable, with dietary and allergen filters, cuisine and goal preferences, availability, estimated budget and preparation time.
 - **Ingredient prices and nutrition:** seed nutrition uses rounded representative estimates guided by IFCT 2017 (ICMR-NIN) and USDA FoodData Central, with illustrative INR prices. These are not direct IFCT table transcriptions, live/local market prices, lab analyses, or medical advice. Recipe nutrition is calculated from ingredient quantities and servings in the `recipe_nutrition` SQL view.
-- **Persistence:** guest profile, preferences, ingredient quantities, favorites, comparisons and shopping items use browser/Electron local storage. Signed-in web accounts sync those planner details to Supabase.
+- **Persistence:** guest profile, preferences, ingredient quantities, favorites, comparisons and shopping items use browser/Electron local storage. Signed-in web and Electron accounts sync those planner details to Supabase.
 - **Photography and typography:** Unsplash and Google Fonts are requested over the network. The app still has system-font fallbacks, but remote images and fonts need internet access.
 - **Not connected:** live price or nutrition sources, analytics, inventory, and a support inbox. No grocery ordering or payment flow is included.
 
