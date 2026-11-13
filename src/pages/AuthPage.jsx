@@ -62,13 +62,21 @@ export default function AuthPage({ mode }) {
         if (result?.session) {
           navigate('/dashboard', { replace: true })
         } else {
+          try {
+            const loginResult = await signIn({ email: email.trim(), password })
+            if (loginResult?.session) {
+              navigate('/dashboard', { replace: true })
+              return
+            }
+          } catch {
+            // Sign in requires explicit confirmation; proceed to confirmation prompt
+          }
           setConfirmationEmail(email.trim())
           setNotice('Supabase accepted your sign-up. Check your inbox and spam folder for a verification link. If no email arrives, the project owner may need to configure email delivery.')
         }
       } else if (mode === 'login') {
         await signIn({ email: email.trim(), password })
-        const from = location.state?.from
-        navigate(from ? { pathname: from.pathname, search: from.search } : '/dashboard', { replace: true })
+        navigate(location.state?.from?.pathname || '/dashboard', { replace: true })
       } else if (mode === 'forgot') {
         await resetPassword(email.trim())
         setNotice('If an account exists for that address, a password reset link is on its way.')
@@ -77,7 +85,7 @@ export default function AuthPage({ mode }) {
         setNotice('Your password has been updated.')
       }
     } catch (requestError) {
-      if (mode === 'login' && requestError?.code === 'email_not_confirmed') {
+      if (mode === 'login' && requestError.code === 'email_not_confirmed') {
         setConfirmationEmail(email.trim())
         setNotice('This account still needs email verification. If emails are not arriving, disable "Confirm email" in Supabase Auth settings or execute the auto-confirm SQL snippet.')
       } else {
