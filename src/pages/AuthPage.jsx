@@ -59,9 +59,18 @@ export default function AuthPage({ mode }) {
     try {
       if (mode === 'signup') {
         const result = await signUp({ name: name.trim(), email: email.trim(), password })
-        if (result.session) {
+        if (result?.session) {
           navigate('/dashboard', { replace: true })
         } else {
+          try {
+            const loginResult = await signIn({ email: email.trim(), password })
+            if (loginResult?.session) {
+              navigate('/dashboard', { replace: true })
+              return
+            }
+          } catch {
+            // Sign in requires explicit confirmation; proceed to confirmation prompt
+          }
           setConfirmationEmail(email.trim())
           setNotice('Supabase accepted your sign-up. Check your inbox and spam folder for a verification link. If no email arrives, the project owner may need to configure email delivery.')
         }
@@ -78,7 +87,7 @@ export default function AuthPage({ mode }) {
     } catch (requestError) {
       if (mode === 'login' && requestError.code === 'email_not_confirmed') {
         setConfirmationEmail(email.trim())
-        setNotice('This account still needs email verification. Request a fresh link below.')
+        setNotice('This account still needs email verification. If emails are not arriving, disable "Confirm email" in Supabase Auth settings or execute the auto-confirm SQL snippet.')
       } else {
         setError(authErrorMessage(requestError, 'That request could not be completed. Please try again.'))
       }
