@@ -1,15 +1,15 @@
 import { createClient } from '@supabase/supabase-js'
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL?.trim()
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY?.trim()
+const supabaseAnonKey = (import.meta.env.VITE_SUPABASE_ANON_KEY || import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY)?.trim()
 
 let client = null
 let configError = ''
 
 if (!supabaseUrl && !supabaseAnonKey) {
-  configError = 'Add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY to your local .env file to enable accounts.'
+  configError = 'Add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY (or VITE_SUPABASE_PUBLISHABLE_KEY) to your local .env file to enable accounts.'
 } else if (!supabaseUrl || !supabaseAnonKey) {
-  configError = 'Both VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY are required to enable accounts.'
+  configError = 'A Supabase URL and public anon/publishable key are both required to enable accounts.'
 } else {
   try {
     client = createClient(supabaseUrl, supabaseAnonKey, {

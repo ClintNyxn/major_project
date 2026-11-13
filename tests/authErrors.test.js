@@ -2,6 +2,12 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import { authErrorMessage } from '../src/utils/authErrors.js'
 
+test('explains how to fix Supabase confirmation email delivery', () => {
+  const message = authErrorMessage({ message: 'Error sending confirmation email' }, 'fallback')
+  assert.match(message, /A project owner must configure custom SMTP/)
+  assert.match(message, /continue as a guest/)
+})
+
 test('explains Supabase default SMTP recipient restrictions', () => {
   assert.match(authErrorMessage({ message: 'Email address not authorized' }, 'fallback'), /built-in email sender only delivers to project team addresses/)
 })

@@ -23,6 +23,13 @@ export function AuthProvider({ children }) {
   const [sessionError, setSessionError] = useState('')
 
   useEffect(() => {
+    try {
+      localStorage.removeItem('khaanakya_auth_users_v1')
+      localStorage.removeItem('khaanakya_auth_session_v1')
+    } catch (error) {
+      console.error('Could not clear obsolete local authentication data.', error)
+    }
+
     if (!supabase) {
       return undefined
     }
@@ -57,7 +64,7 @@ export function AuthProvider({ children }) {
     signUp: async ({ name, email, password }) => {
       if (!supabase) throw unavailableError()
       const { data, error } = await supabase.auth.signUp({
-        email,
+        email: email.trim().toLowerCase(),
         password,
         options: {
           data: { full_name: name },
@@ -65,22 +72,30 @@ export function AuthProvider({ children }) {
         },
       })
       if (error) throw error
+      if (data.session) {
+        setSession(data.session)
+        leaveGuestMode()
+      }
       return data
     },
     signIn: async ({ email, password }) => {
       if (!supabase) throw unavailableError()
-      const { data, error } = await supabase.auth.signInWithPassword({ email, password })
+      const { data, error } = await supabase.auth.signInWithPassword({ email: email.trim().toLowerCase(), password })
       if (error) throw error
+      setSession(data.session)
+      leaveGuestMode()
       return data
     },
     signOut: async () => {
-      if (!supabase) return
-      const { error } = await supabase.auth.signOut()
-      if (error) throw error
+      if (supabase) {
+        const { error } = await supabase.auth.signOut()
+        if (error) throw error
+      }
+      setSession(null)
     },
     resetPassword: async (email) => {
       if (!supabase) throw unavailableError()
-      const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo: redirectUrl() })
+      const { error } = await supabase.auth.resetPasswordForEmail(email.trim().toLowerCase(), { redirectTo: redirectUrl() })
       if (error) throw error
     },
     updatePassword: async (password) => {
@@ -90,7 +105,7 @@ export function AuthProvider({ children }) {
     },
     resendConfirmation: async (email) => {
       if (!supabase) throw unavailableError()
-      const { error } = await supabase.auth.resend({ type: 'signup', email })
+      const { error } = await supabase.auth.resend({ type: 'signup', email: email.trim().toLowerCase() })
       if (error) throw error
     },
   }), [])

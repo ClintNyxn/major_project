@@ -1,5 +1,8 @@
 export function authErrorMessage(error, fallback) {
   const message = error?.message || fallback
+  if (/sending confirmation email/i.test(message)) {
+    return 'Supabase could not send the verification email. A project owner must configure custom SMTP or turn off "Confirm email" for testing. Until then, email signup cannot finish; continue as a guest.'
+  }
   if (/email address not authorized/i.test(message)) {
     return 'Supabase’s built-in email sender only delivers to project team addresses. Configure a custom SMTP provider in the project’s Auth settings to email other addresses.'
   }

@@ -67,7 +67,8 @@ export default function AuthPage({ mode }) {
         }
       } else if (mode === 'login') {
         await signIn({ email: email.trim(), password })
-        navigate(location.state?.from?.pathname || '/dashboard', { replace: true })
+        const from = location.state?.from
+        navigate(from ? { pathname: from.pathname, search: from.search } : '/dashboard', { replace: true })
       } else if (mode === 'forgot') {
         await resetPassword(email.trim())
         setNotice('If an account exists for that address, a password reset link is on its way.')
@@ -76,7 +77,7 @@ export default function AuthPage({ mode }) {
         setNotice('Your password has been updated.')
       }
     } catch (requestError) {
-      if (mode === 'login' && requestError.code === 'email_not_confirmed') {
+      if (mode === 'login' && requestError?.code === 'email_not_confirmed') {
         setConfirmationEmail(email.trim())
         setNotice('This account still needs email verification. Request a fresh link below.')
       } else {
