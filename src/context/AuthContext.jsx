@@ -9,61 +9,6 @@ const configError = browserAuthAvailable
   ? supabaseConfigError
   : 'Account sign-in is available in the web app. Continue as a guest in the packaged desktop app.'
 
-const FALLBACK_USERS_KEY = 'khaanakya_auth_users_v1'
-const FALLBACK_SESSION_KEY = 'khaanakya_auth_session_v1'
-
-function getFallbackUsers() {
-  try {
-    return JSON.parse(localStorage.getItem(FALLBACK_USERS_KEY) || '{}')
-  } catch {
-    return {}
-  }
-}
-
-function saveFallbackUser(user) {
-  try {
-    const users = getFallbackUsers()
-    users[user.email.toLowerCase()] = user
-    localStorage.setItem(FALLBACK_USERS_KEY, JSON.stringify(users))
-  } catch (err) {
-    console.error('Could not save fallback user', err)
-  }
-}
-
-function getFallbackSession() {
-  try {
-    return JSON.parse(localStorage.getItem(FALLBACK_SESSION_KEY) || 'null')
-  } catch {
-    return null
-  }
-}
-
-function saveFallbackSession(session) {
-  try {
-    if (session) localStorage.setItem(FALLBACK_SESSION_KEY, JSON.stringify(session))
-    else localStorage.removeItem(FALLBACK_SESSION_KEY)
-  } catch (err) {
-    console.error('Could not save fallback session', err)
-  }
-}
-
-function createLocalSession(user) {
-  return {
-    access_token: 'local_jwt_' + Math.random().toString(36).slice(2),
-    token_type: 'bearer',
-    expires_in: 86400,
-    expires_at: Math.floor(Date.now() / 1000) + 86400,
-    user: {
-      id: user.id || 'usr_' + Math.random().toString(36).slice(2, 10),
-      email: user.email,
-      user_metadata: user.user_metadata || {},
-      app_metadata: { provider: 'email' },
-      aud: 'authenticated',
-      created_at: user.created_at || new Date().toISOString(),
-    },
-  }
-}
-
 function unavailableError() {
   return new Error(configError || 'Account sign-in is unavailable in this app.')
 }
@@ -73,8 +18,8 @@ function redirectUrl() {
 }
 
 export function AuthProvider({ children }) {
-  const [session, setSession] = useState(getFallbackSession)
-  const [loading, setLoading] = useState(() => Boolean(supabase) && !getFallbackSession())
+  const [session, setSession] = useState(null)
+  const [loading, setLoading] = useState(Boolean(supabase))
   const [sessionError, setSessionError] = useState('')
 
   useEffect(() => {
@@ -85,10 +30,7 @@ export function AuthProvider({ children }) {
     let active = true
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, nextSession) => {
       if (!active) return
-      if (nextSession) {
-        setSession(nextSession)
-        saveFallbackSession(null)
-      }
+      setSession(nextSession)
       setSessionError('')
       if (nextSession?.user) leaveGuestMode()
       if (event === 'PASSWORD_RECOVERY') window.location.hash = '/auth/update-password'
@@ -96,15 +38,12 @@ export function AuthProvider({ children }) {
 
     supabase.auth.getSession().then(({ data, error }) => {
       if (!active) return
-      if (error && !local) setSessionError(`Could not restore your sign-in session: ${error.message}`)
-      else if (data?.session) {
-        setSession(data.session)
-        saveFallbackSession(null)
-      }
+      if (error) setSessionError(`Could not restore your sign-in session: ${error.message}`)
+      else setSession(data.session)
       setLoading(false)
     }).catch((error) => {
       if (!active) return
-      if (!local) setSessionError(`Could not restore your sign-in session: ${error.message}`)
+      setSessionError(`Could not restore your sign-in session: ${error.message}`)
       setLoading(false)
     })
 
@@ -116,26 +55,7 @@ export function AuthProvider({ children }) {
 
   const actions = useMemo(() => ({
     signUp: async ({ name, email, password }) => {
-      // When Supabase is not configured (e.g. packaged desktop app), use a
-      // local-only session so the app still works offline.
-      if (!supabase) {
-        const user = {
-          id: 'usr_' + Math.random().toString(36).slice(2, 10),
-          email: email.trim().toLowerCase(),
-          user_metadata: { full_name: name },
-          password,
-          created_at: new Date().toISOString(),
-        }
-        saveFallbackUser(user)
-        const localSession = createLocalSession(user)
-        saveFallbackSession(localSession)
-        setSession(localSession)
-        leaveGuestMode()
-        return { user: localSession.user, session: localSession }
-      }
-
-      // Supabase is configured — trust the real auth flow. A fallback session
-      // with a non-UUID id would break account-data sync (user_id is uuid).
+      if (!supabase) throw unavailableError()
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
@@ -145,80 +65,35 @@ export function AuthProvider({ children }) {
         },
       })
       if (error) throw error
-      if (data.session) {
-        saveFallbackSession(null)
-        return data
-      }
-      // No session returned — email confirmation is required. Return the
-      // data so the UI can show the "check your inbox" screen.
       return data
     },
     signIn: async ({ email, password }) => {
-      if (!supabase) {
-        const users = getFallbackUsers()
-        const normalized = email.trim().toLowerCase()
-        const localUser = users[normalized]
-        if (localUser && localUser.password === password) {
-          const localSession = createLocalSession(localUser)
-          saveFallbackSession(localSession)
-          setSession(localSession)
-          leaveGuestMode()
-          return { user: localSession.user, session: localSession }
-        }
-        throw unavailableError()
-      }
-
-      // Supabase is configured — trust the real auth flow.
-      const normalized = email.trim().toLowerCase()
-      const { data, error } = await supabase.auth.signInWithPassword({ email: normalized, password })
+      if (!supabase) throw unavailableError()
+      const { data, error } = await supabase.auth.signInWithPassword({ email, password })
       if (error) throw error
-      saveFallbackSession(null)
       return data
     },
     signOut: async () => {
-      saveFallbackSession(null)
-      setSession(null)
       if (!supabase) return
-      try {
-        await supabase.auth.signOut()
-      } catch {
-        // Ignore remote signout error
-      }
+      const { error } = await supabase.auth.signOut()
+      if (error) throw error
     },
     resetPassword: async (email) => {
       if (!supabase) throw unavailableError()
-      try {
-        const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo: redirectUrl() })
-        if (error) throw error
-      } catch (err) {
-        if (/sending|not authorized|rate limit/i.test(err.message)) {
-          return // Silent success for reset request
-        }
-        throw err
-      }
+      const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo: redirectUrl() })
+      if (error) throw error
     },
     updatePassword: async (password) => {
       if (!supabase) throw unavailableError()
-      const current = session?.user
-      if (current) {
-        const users = getFallbackUsers()
-        if (users[current.email?.toLowerCase()]) {
-          users[current.email.toLowerCase()].password = password
-          saveFallbackUser(users[current.email.toLowerCase()])
-        }
-      }
-      try {
-        await supabase.auth.updateUser({ password })
-      } catch {
-        // Ignore if remote fails
-      }
+      const { error } = await supabase.auth.updateUser({ password })
+      if (error) throw error
     },
     resendConfirmation: async (email) => {
       if (!supabase) throw unavailableError()
       const { error } = await supabase.auth.resend({ type: 'signup', email })
       if (error) throw error
     },
-  }), [session])
+  }), [])
 
   const value = useMemo(() => ({
     ...actions,
