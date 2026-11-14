@@ -1,5 +1,7 @@
 const OVERPASS_URL = 'https://overpass-api.de/api/interpreter'
 const SEARCH_RADIUS_METERS = 3500
+const RETRYABLE_STATUS_CODES = new Set([502, 503, 504])
+const MAX_TRANSIENT_RETRIES = 2
 
 const foodAmenities = new Set(['restaurant', 'cafe', 'fast_food', 'food_court'])
 const groceryShops = new Set(['supermarket', 'convenience', 'greengrocer', 'bakery', 'health_food', 'farm'])
@@ -113,19 +115,45 @@ export function rankPlaces(places, preferences, location) {
     })
 }
 
+function waitForRetry(delay, signal) {
+  if (signal?.aborted) return Promise.reject(signal.reason)
+
+  return new Promise((resolve, reject) => {
+    const cleanup = () => signal?.removeEventListener('abort', onAbort)
+    const timeout = setTimeout(() => {
+      cleanup()
+      resolve()
+    }, delay)
+    const onAbort = () => {
+      clearTimeout(timeout)
+      cleanup()
+      reject(signal.reason || new DOMException('The operation was aborted.', 'AbortError'))
+    }
+
+    signal?.addEventListener('abort', onAbort, { once: true })
+  })
+}
+
 export async function fetchNearbyPlaces(location, signal) {
   const query = `[out:json][timeout:20];(nwr(around:${SEARCH_RADIUS_METERS},${location.lat},${location.lon})["amenity"~"^(restaurant|cafe|fast_food|food_court)$"];nwr(around:${SEARCH_RADIUS_METERS},${location.lat},${location.lon})["shop"~"^(supermarket|convenience|greengrocer|bakery|health_food|farm)$"];);out body center;`
-  const response = await fetch(OVERPASS_URL, {
-    method: 'POST',
-    headers: {
-      Accept: 'application/json',
-      'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8',
-    },
-    body: new URLSearchParams({ data: query }),
-    signal,
-  })
+  let response
+  for (let attempt = 0; attempt <= MAX_TRANSIENT_RETRIES; attempt += 1) {
+    response = await fetch(OVERPASS_URL, {
+      method: 'POST',
+      headers: {
+        Accept: 'application/json',
+        'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8',
+      },
+      body: new URLSearchParams({ data: query }),
+      signal,
+    })
 
-  if (!response.ok) throw new Error(`Nearby places are unavailable right now (HTTP ${response.status}). Please try again.`)
+    if (response.ok) break
+    if (!RETRYABLE_STATUS_CODES.has(response.status) || attempt === MAX_TRANSIENT_RETRIES) {
+      throw new Error(`Nearby places are unavailable right now (HTTP ${response.status}). Please try again.`)
+    }
+    await waitForRetry(300 * (attempt + 1), signal)
+  }
 
   const payload = await response.json()
   if (!Array.isArray(payload.elements)) throw new Error('The map service returned an unexpected response. Please try again.')

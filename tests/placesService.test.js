@@ -74,8 +74,31 @@ test('queries nearby food and grocery places and surfaces service errors', async
     assert.ok(query.endsWith('out body center;'))
     assert.equal(places[0].name, 'Cafe')
 
-    globalThis.fetch = async () => ({ ok: false, status: 503 })
+    let failedAttempts = 0
+    globalThis.fetch = async () => {
+      failedAttempts += 1
+      return { ok: false, status: 503 }
+    }
     await assert.rejects(fetchNearbyPlaces({ lat: 12.9, lon: 77.6 }), /HTTP 503/)
+    assert.equal(failedAttempts, 3)
+  } finally {
+    globalThis.fetch = originalFetch
+  }
+})
+
+test('retries a transient Overpass bad-gateway response', async () => {
+  const originalFetch = globalThis.fetch
+  let attempts = 0
+  globalThis.fetch = async () => {
+    attempts += 1
+    return attempts === 1
+      ? { ok: false, status: 502 }
+      : { ok: true, json: async () => ({ elements: [] }) }
+  }
+
+  try {
+    assert.deepEqual(await fetchNearbyPlaces({ lat: 12.9, lon: 77.6 }), [])
+    assert.equal(attempts, 2)
   } finally {
     globalThis.fetch = originalFetch
   }
