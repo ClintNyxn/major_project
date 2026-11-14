@@ -62,7 +62,7 @@ export default function AppLayout() {
       {/* Desktop Sidebar */}
       <aside className="sidebar">
         <div className="sidebar-header">
-          <Link to="/dashboard" className="brand-lockup">
+          <Link to="/dashboard" className="brand-lockup" title="KhaanaKya? - Dashboard" aria-label="KhaanaKya? Dashboard">
             <span className="brand-mark">K</span>
             <span className="brand-text">KhaanaKya<span className="brand-question">?</span></span>
           </Link>
@@ -76,6 +76,8 @@ export default function AppLayout() {
             <NavLink
               key={path}
               to={path}
+              title={label}
+              aria-label={label}
               className={({ isActive }) =>
                 `nav-item ${isActive || (path === '/recommendations' && location.pathname.startsWith('/recipe/')) ? 'active' : ''}`
               }
@@ -90,7 +92,7 @@ export default function AppLayout() {
         </nav>
 
         <div className="sidebar-bottom">
-          <Link to="/profile" className="user-profile-pill">
+          <Link to="/profile" className="user-profile-pill" title={profile.name ? `${profile.name} (Profile)` : 'My profile'} aria-label="My profile">
             <span className="sidebar-avatar">
               {profile.name?.trim().charAt(0).toUpperCase() || 'K'}
             </span>
