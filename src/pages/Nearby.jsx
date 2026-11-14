@@ -12,7 +12,7 @@ const categories = [
   { id: 'store', label: 'Stores' },
 ]
 
-const locationOptions = { enableHighAccuracy: false, maximumAge: 300000, timeout: 12000 }
+const locationOptions = { enableHighAccuracy: false, maximumAge: 300000, timeout: 60000 }
 
 function placeIcon(kind) {
   return L.divIcon({
@@ -83,6 +83,33 @@ function NearbyPlaceSkeleton() {
   </article>
 }
 
+function NearbyLoadingLayout() {
+  return <div className="nearby-layout" aria-busy="true">
+    <section className="nearby-map-panel" aria-label="Nearby map loading">
+      <div className="nearby-panel-heading"><div><p className="eyebrow">EXPLORE THE NEIGHBOURHOOD</p><h2>Nearby map</h2></div><span className="nearby-count">Waiting…</span></div>
+      <div className="nearby-map">
+        <div className="nearby-map-skeleton" role="status">
+          <div className="nearby-map-skeleton-grid" aria-hidden="true">{Array.from({ length: 12 }, (_, index) => <span className="skeleton" key={index} />)}</div>
+          <span className="nearby-map-skeleton-label">Getting your location…</span>
+        </div>
+      </div>
+      <div className="nearby-map-legend"><span><i className="legend-dot legend-food" />Restaurants & cafes</span><span><i className="legend-dot legend-store" />Stores</span><span><i className="legend-dot legend-user" />You</span></div>
+    </section>
+    <section className="nearby-results-panel" aria-label="Nearby places loading">
+      <div className="nearby-panel-heading"><div><p className="eyebrow">PICKED FOR YOUR PREFERENCES</p><h2>Places to explore</h2></div></div>
+      <div className="nearby-preference-skeleton" aria-hidden="true">
+        {Array.from({ length: 4 }, (_, index) => <span className="skeleton" key={index} />)}
+      </div>
+      <div className="nearby-filter-skeleton" aria-hidden="true">
+        {Array.from({ length: 3 }, (_, index) => <span className="skeleton" key={index} />)}
+      </div>
+      <div className="nearby-search-skeleton" aria-hidden="true"><span className="skeleton" /></div>
+      <p className="nearby-loading-note" role="status">Waiting for your location to find nearby matches…</p>
+      <div className="nearby-place-list">{Array.from({ length: 3 }, (_, index) => <NearbyPlaceSkeleton key={index} />)}</div>
+    </section>
+  </div>
+}
+
 function directionsUrl(location, place) {
   return `https://www.openstreetmap.org/directions?engine=graphhopper_foot&route=${location.lat},${location.lon};${place.lat},${place.lon}`
 }
@@ -103,7 +130,6 @@ export default function Nearby() {
   const [mapTilesLoaded, setMapTilesLoaded] = useState(false)
   const [mapTileError, setMapTileError] = useState(false)
   const [error, setError] = useState('')
-  const [searchNotice, setSearchNotice] = useState('')
   const [category, setCategory] = useState('all')
   const [search, setSearch] = useState('')
   const [selectedId, setSelectedId] = useState(null)
@@ -115,18 +141,8 @@ export default function Nearby() {
     async function load() {
       setPlacesPending(true)
       setError('')
-      setSearchNotice('')
       try {
-        const results = await fetchNearbyPlaces(location, controller.signal, (partialResults, status) => {
-          if (active && !controller.signal.aborted) {
-            setPlaces(partialResults)
-            if (status?.warning) {
-              setSearchNotice(status.warning === 'The nearby search is taking too long. Please try again.'
-                ? 'The farther search timed out; showing the closest matches.'
-                : `Showing the closest matches. Farther places could not be loaded: ${status.warning}`)
-            }
-          }
-        })
+        const results = await fetchNearbyPlaces(location, controller.signal)
         if (active && !controller.signal.aborted) setPlaces(results)
       } catch (loadError) {
         if (active && loadError.name !== 'AbortError') {
@@ -189,7 +205,7 @@ export default function Nearby() {
     <p className="nearby-privacy-note"><span aria-hidden="true">i</span> Your precise location is used only after you choose to share it. OpenStreetMap receives it to find nearby places and display map tiles; it is not saved in your KhaanaKya profile.</p>
     {error && <p className="nearby-error" role="alert">{error}</p>}
 
-    {!location ? <section className="nearby-intro">
+    {!location ? locationPending ? <NearbyLoadingLayout /> : <section className="nearby-intro">
       <div className="nearby-intro-icon" aria-hidden="true">⌖</div>
       <p className="eyebrow">YOUR LOCATION STAYS YOURS</p>
       <h2>Find good options nearby.</h2>
@@ -233,19 +249,20 @@ export default function Nearby() {
 
       <section className="nearby-results-panel" aria-label="Nearby places list">
         <div className="nearby-panel-heading"><div><p className="eyebrow">PICKED FOR YOUR PREFERENCES</p><h2>Places to explore</h2></div></div>
-        <div className="nearby-preference-summary">
+        {placesPending ? <div className="nearby-preference-skeleton" aria-hidden="true">
+          {Array.from({ length: 4 }, (_, index) => <span className="skeleton" key={index} />)}
+        </div> : <div className="nearby-preference-summary">
           <span>{preferences.foodType || 'No food preference'}</span>
           {(preferences.cuisines || []).slice(0, 2).map((cuisine) => <span key={cuisine}>{cuisine}</span>)}
           {(preferences.healthGoals || []).slice(0, 2).map((goal) => <span key={goal}>{goal}</span>)}
           {(preferences.allergies || []).length > 0 && <span>Allergies: verify with venue</span>}
-        </div>
+        </div>}
         <div className="nearby-filters" role="group" aria-label="Filter nearby places">
           {categories.map((item) => <button key={item.id} type="button" className={category === item.id ? 'active' : ''} aria-pressed={category === item.id} onClick={() => setCategory(item.id)}>{item.label}</button>)}
         </div>
         <label className="nearby-search"><span className="sr-only">Search nearby places</span><span aria-hidden="true">⌕</span><input type="search" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search a place or cuisine" /></label>
 
         {placesPending && <p className="nearby-loading-note" role="status">{places.length ? 'Showing the closest options while we search farther…' : 'Finding nearby restaurants and cafes…'}</p>}
-        {searchNotice && <p className="nearby-loading-note" role="status">{searchNotice}</p>}
         {displayedPlaces.length > 0 || placesPending ? <div className="nearby-place-list">{displayedPlaces.map((place) => <article className={`nearby-place ${selectedId === place.id ? 'selected' : ''}`} key={place.id}>
             <button type="button" className="nearby-place-select" onClick={() => setSelectedId(place.id)} aria-pressed={selectedId === place.id}>
               <span className={`nearby-place-icon nearby-place-icon-${place.kind}`} aria-hidden="true">{place.kind === 'store' ? 'S' : 'F'}</span>
