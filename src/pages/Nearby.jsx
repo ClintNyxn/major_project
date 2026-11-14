@@ -30,6 +30,8 @@ function MapViewport({ center, selectedPlace }) {
   const targetZoom = selectedPlace ? 16 : 14
   useEffect(() => {
     map.setView([targetLat, targetLon], targetZoom, { animate: true })
+    const frame = requestAnimationFrame(() => map.invalidateSize({ pan: false }))
+    return () => cancelAnimationFrame(frame)
   }, [map, targetLat, targetLon, targetZoom])
   return null
 }
@@ -67,6 +69,20 @@ function preferenceClass(place) {
   return 'unknown'
 }
 
+function NearbyPlaceSkeleton() {
+  return <article className="nearby-place nearby-place-skeleton" aria-hidden="true">
+    <div className="nearby-place-select">
+      <span className="skeleton nearby-skeleton-icon" />
+      <span className="nearby-place-copy">
+        <span className="skeleton nearby-skeleton-line" />
+        <span className="skeleton nearby-skeleton-line short" />
+      </span>
+      <span className="skeleton nearby-skeleton-distance" />
+    </div>
+    <span className="skeleton nearby-skeleton-detail" />
+  </article>
+}
+
 function directionsUrl(location, place) {
   return `https://www.openstreetmap.org/directions?engine=graphhopper_foot&route=${location.lat},${location.lon};${place.lat},${place.lon}`
 }
@@ -84,22 +100,36 @@ export default function Nearby() {
   const [locationPending, setLocationPending] = useState(false)
   const [places, setPlaces] = useState([])
   const [placesPending, setPlacesPending] = useState(false)
+  const [mapTilesLoaded, setMapTilesLoaded] = useState(false)
+  const [mapTileError, setMapTileError] = useState(false)
   const [error, setError] = useState('')
+  const [searchNotice, setSearchNotice] = useState('')
   const [category, setCategory] = useState('all')
   const [search, setSearch] = useState('')
   const [selectedId, setSelectedId] = useState(null)
 
   useEffect(() => {
     if (!location) return undefined
+    let active = true
     const controller = new AbortController()
     async function load() {
       setPlacesPending(true)
       setError('')
+      setSearchNotice('')
       try {
-        setPlaces(await fetchNearbyPlaces(location, controller.signal))
+        const results = await fetchNearbyPlaces(location, controller.signal, (partialResults, status) => {
+          if (active && !controller.signal.aborted) {
+            setPlaces(partialResults)
+            if (status?.warning) {
+              setSearchNotice(status.warning === 'The nearby search is taking too long. Please try again.'
+                ? 'The farther search timed out; showing the closest matches.'
+                : `Showing the closest matches. Farther places could not be loaded: ${status.warning}`)
+            }
+          }
+        })
+        if (active && !controller.signal.aborted) setPlaces(results)
       } catch (loadError) {
-        if (loadError.name !== 'AbortError') {
-          setPlaces([])
+        if (active && loadError.name !== 'AbortError') {
           setError(loadError.message)
         }
       } finally {
@@ -107,7 +137,10 @@ export default function Nearby() {
       }
     }
     load()
-    return () => controller.abort()
+    return () => {
+      active = false
+      controller.abort()
+    }
   }, [location])
 
   const visiblePlaces = useMemo(() => {
@@ -121,6 +154,8 @@ export default function Nearby() {
   }, [category, location, places, preferences, search])
 
   const selectedPlace = visiblePlaces.find((place) => place.id === selectedId) || null
+  const displayedPlaces = placesPending ? visiblePlaces.slice(0, 4) : visiblePlaces
+  const skeletonCount = placesPending ? (places.length ? 2 : 3) : 0
 
   function locate() {
     if (!navigator.geolocation) {
@@ -133,6 +168,8 @@ export default function Nearby() {
     navigator.geolocation.getCurrentPosition(({ coords }) => {
       setPlaces([])
       setSelectedId(null)
+      setMapTilesLoaded(false)
+      setMapTileError(false)
       setLocation({ lat: coords.latitude, lon: coords.longitude })
       setLocationPending(false)
     }, (locationError) => {
@@ -163,7 +200,14 @@ export default function Nearby() {
         <div className="nearby-panel-heading"><div><p className="eyebrow">EXPLORE THE NEIGHBOURHOOD</p><h2>Nearby map</h2></div><span className="nearby-count">{placesPending ? 'Searching…' : `${visiblePlaces.length} places`}</span></div>
         <div className="nearby-map">
           <MapContainer center={[location.lat, location.lon]} zoom={14} scrollWheelZoom={false} zoomControl={false}>
-            <TileLayer attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors' url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+            <TileLayer
+              attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+              url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+              eventHandlers={{
+                load: () => setMapTilesLoaded(true),
+                tileerror: () => setMapTileError(true),
+              }}
+            />
             <ZoomControl position="topright" />
             <MapViewport center={location} selectedPlace={selectedPlace} />
             <CircleMarker center={[location.lat, location.lon]} radius={8} pathOptions={{ color: '#ffffff', weight: 3, fillColor: '#315bcb', fillOpacity: 1 }}>
@@ -177,6 +221,11 @@ export default function Nearby() {
               </Popup>
             </Marker>)}
           </MapContainer>
+          {!mapTilesLoaded && !mapTileError && <div className="nearby-map-skeleton" role="status">
+            <div className="nearby-map-skeleton-grid" aria-hidden="true">{Array.from({ length: 12 }, (_, index) => <span className="skeleton" key={index} />)}</div>
+            <span className="nearby-map-skeleton-label">Loading map…</span>
+          </div>}
+          {mapTileError && <div className="nearby-map-tile-error" role="status">Some map tiles are unavailable. Try zooming or moving the map; nearby results are still listed below.</div>}
         </div>
         <div className="nearby-map-legend"><span><i className="legend-dot legend-food" />Restaurants & cafes</span><span><i className="legend-dot legend-store" />Stores</span><span><i className="legend-dot legend-user" />You</span></div>
         <p className="nearby-map-credit">Place details from OpenStreetMap contributors. Map labels and dietary tags may be incomplete.</p>
@@ -195,8 +244,9 @@ export default function Nearby() {
         </div>
         <label className="nearby-search"><span className="sr-only">Search nearby places</span><span aria-hidden="true">⌕</span><input type="search" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search a place or cuisine" /></label>
 
-        {placesPending ? <div className="nearby-empty" role="status"><span className="nearby-spinner" aria-hidden="true" />Looking for places around you…</div>
-          : visiblePlaces.length > 0 ? <div className="nearby-place-list">{visiblePlaces.map((place) => <article className={`nearby-place ${selectedId === place.id ? 'selected' : ''}`} key={place.id}>
+        {placesPending && <p className="nearby-loading-note" role="status">{places.length ? 'Showing the closest options while we search farther…' : 'Finding nearby restaurants and cafes…'}</p>}
+        {searchNotice && <p className="nearby-loading-note" role="status">{searchNotice}</p>}
+        {displayedPlaces.length > 0 || placesPending ? <div className="nearby-place-list">{displayedPlaces.map((place) => <article className={`nearby-place ${selectedId === place.id ? 'selected' : ''}`} key={place.id}>
             <button type="button" className="nearby-place-select" onClick={() => setSelectedId(place.id)} aria-pressed={selectedId === place.id}>
               <span className={`nearby-place-icon nearby-place-icon-${place.kind}`} aria-hidden="true">{place.kind === 'store' ? 'S' : 'F'}</span>
               <span className="nearby-place-copy"><strong>{place.name}</strong><span>{placeLabel(place)}{place.cuisine ? ` · ${place.cuisine.replaceAll(';', ', ')}` : ''}</span></span>
@@ -204,8 +254,10 @@ export default function Nearby() {
             </button>
             {place.kind === 'food' && <p className={`nearby-fit nearby-fit-${preferenceClass(place)}`}>{preferenceLabels(place)}</p>}
             <a className="nearby-directions" href={directionsUrl(location, place)} target="_blank" rel="noreferrer">Get directions <span aria-hidden="true">↗</span></a>
-          </article>)}</div>
-            : <div className="nearby-empty">{search ? 'No nearby places match that search. Try another name or cuisine.' : 'No named places were found in this area. Nearby map data varies by neighbourhood; try again later.'}</div>}
+          </article>)}
+          {Array.from({ length: skeletonCount }, (_, index) => <NearbyPlaceSkeleton key={`skeleton-${index}`} />)}
+        </div>
+          : <div className="nearby-empty">{search ? 'No nearby places match that search. Try another name or cuisine.' : 'No named places were found in this area. Nearby map data varies by neighbourhood; try again later.'}</div>}
         <p className="nearby-footnote">Preference tags come from public map data, not verified menus. Always confirm ingredients and allergens directly with a venue.</p>
       </section>
     </div>}
