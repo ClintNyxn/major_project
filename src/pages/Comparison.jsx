@@ -1,8 +1,8 @@
 import { Link, useNavigate } from 'react-router-dom'
 import PageHeader from '../components/PageHeader.jsx'
+import RecipeImage from '../components/RecipeImage.jsx'
 import { useApp } from '../context/useApp.js'
 import { getAvailability, getRecipeCosts } from '../utils/recipeMath.js'
-import fallbackImage from '../assets/dashboard-meal.svg'
 import { ScaleIcon, CheckIcon } from '../components/Icons.jsx'
 
 const metrics = [
@@ -144,13 +144,9 @@ export default function Comparison() {
                   {selected.map((recipe) => (
                     <th key={recipe.id} className="recipe-compare-header">
                       <div className="comparison-recipe-card">
-                        <img
-                          src={recipe.image || fallbackImage}
-                          alt={recipe.name}
+                        <RecipeImage
+                          recipe={recipe}
                           className="compare-recipe-thumb"
-                          onError={(e) => {
-                            e.currentTarget.src = fallbackImage
-                          }}
                         />
                         <div className="compare-recipe-meta">
                           <strong>{recipe.name}</strong>

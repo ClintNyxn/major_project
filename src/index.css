@@ -1558,6 +1558,66 @@ input:focus, select:focus, textarea:focus {
   height: 100%;
 }
 
+.recipe-image-container {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background-color: var(--bg-subtle, #f3ede2);
+  display: block;
+}
+
+.recipe-image-shimmer {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0) 0%,
+    rgba(255, 255, 255, 0.45) 50%,
+    rgba(255, 255, 255, 0) 100%
+  );
+  background-size: 200% 100%;
+  animation: recipe-shimmer-wave 1.4s infinite ease-in-out;
+  z-index: 1;
+  pointer-events: none;
+}
+
+[data-theme='dark'] .recipe-image-shimmer {
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0) 0%,
+    rgba(255, 255, 255, 0.1) 50%,
+    rgba(255, 255, 255, 0) 100%
+  );
+  background-size: 200% 100%;
+}
+
+@keyframes recipe-shimmer-wave {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.recipe-image-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  border-radius: inherit;
+  transition: opacity 0.3s ease, transform 0.4s ease;
+}
+
+.recipe-image-img.is-loading {
+  opacity: 0;
+}
+
+.recipe-image-img.is-loaded {
+  opacity: 1;
+}
+
 .recipe-image {
   width: 100%;
   height: 100%;
@@ -1565,7 +1625,8 @@ input:focus, select:focus, textarea:focus {
   transition: transform 0.4s ease;
 }
 
-.recipe-card:hover .recipe-image {
+.recipe-card:hover .recipe-image,
+.recipe-card:hover .recipe-image-container .recipe-image-img {
   transform: scale(1.04);
 }
 
@@ -2315,6 +2376,30 @@ input:focus, select:focus, textarea:focus {
   width: 100%;
   height: 100%;
   object-fit: cover;
+}
+
+/* When using RecipeImage inside detail-hero */
+.detail-hero .recipe-image-container {
+  width: 100%;
+  height: 100%;
+  border-radius: 0;
+}
+
+.detail-hero .recipe-image-container .recipe-image-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.hero-photo-credit {
+  position: absolute;
+  bottom: 10px;
+  right: 14px;
+  font-size: 0.72rem;
+  color: rgba(255, 255, 255, 0.7);
+  z-index: 3;
+  pointer-events: none;
+  letter-spacing: 0.01em;
 }
 
 .detail-hero-overlay {
@@ -3322,6 +3407,18 @@ input:focus, select:focus, textarea:focus {
   height: 120px;
   object-fit: cover;
   border-radius: var(--radius-sm);
+}
+
+/* When RecipeImage is used inside comparison cards */
+.compare-recipe-thumb.recipe-image-container {
+  height: 120px;
+  border-radius: var(--radius-sm);
+}
+
+.compare-recipe-thumb.recipe-image-container .recipe-image-img {
+  object-fit: cover;
+  width: 100%;
+  height: 100%;
 }
 
 .compare-recipe-meta strong {

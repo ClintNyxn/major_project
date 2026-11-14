@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import ServingSelector from '../components/ServingSelector.jsx'
+import RecipeImage from '../components/RecipeImage.jsx'
 import { useApp } from '../context/useApp.js'
 import { useToast } from '../context/useToast.js'
 import { getAvailability, getRecipeCosts } from '../utils/recipeMath.js'
-import fallbackImage from '../assets/dashboard-meal.svg'
+import { getPhotoCredit } from '../utils/recipeImageFallback.js'
 import {
   HeartIcon,
   ShoppingBagIcon,
@@ -47,6 +48,11 @@ export default function RecipeDetail() {
   const [servings, setServings] = useState(defaultServings)
   const [cookMode, setCookMode] = useState(false)
   const [completedSteps, setCompletedSteps] = useState([])
+  const [resolvedHeroUrl, setResolvedHeroUrl] = useState('')
+
+  const photoCredit = useMemo(() => {
+    return getPhotoCredit(resolvedHeroUrl || recipe?.image_url || recipe?.image)
+  }, [resolvedHeroUrl, recipe?.image_url, recipe?.image])
 
   const costs = useMemo(
     () => (recipe ? getRecipeCosts(recipe, servings, app.ingredientById) : null),
@@ -198,14 +204,16 @@ export default function RecipeDetail() {
 
       {/* Hero Header Presentation */}
       <div className="detail-hero">
-        <img
-          src={recipe.image || fallbackImage}
-          alt={recipe.name}
+        <RecipeImage
+          recipe={recipe}
           className="detail-hero-img"
-          onError={(e) => {
-            e.currentTarget.src = fallbackImage
-          }}
+          onResolvedUrl={setResolvedHeroUrl}
         />
+        {photoCredit && (
+          <span className="hero-photo-credit">
+            Photo: {photoCredit}
+          </span>
+        )}
         <div className="detail-hero-overlay">
           <div className="detail-hero-badges">
             <span className="hero-pill">{recipe.cuisine}</span>

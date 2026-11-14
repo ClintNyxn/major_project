@@ -3,7 +3,7 @@ import { useApp } from '../context/useApp.js'
 import { useToast } from '../context/useToast.js'
 import { getRecipeCosts, getAvailability } from '../utils/recipeMath.js'
 import { HeartIcon, ClockIcon, ScaleIcon, UsersIcon } from './Icons.jsx'
-import fallbackImage from '../assets/dashboard-meal.svg'
+import RecipeImage from './RecipeImage.jsx'
 
 export default function RecipeCard({ recipe, showActions = true }) {
   const {
@@ -88,15 +88,7 @@ export default function RecipeCard({ recipe, showActions = true }) {
     <article className="recipe-card">
       <div className="recipe-image-wrap">
         <Link to={`/recipe/${recipe.id}`} className="recipe-image-link" aria-label={`View recipe for ${recipe.name}`}>
-          <img
-            className="recipe-image"
-            src={recipe.image || fallbackImage}
-            alt={recipe.name}
-            loading="lazy"
-            onError={(e) => {
-              e.currentTarget.src = fallbackImage
-            }}
-          />
+          <RecipeImage recipe={recipe} className="recipe-image" />
         </Link>
 
         {/* Floating Match Pill */}
