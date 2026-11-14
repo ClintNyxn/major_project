@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import Logo from '../components/Logo.jsx'
+import Avatar from '../components/Avatar.jsx'
 import { useApp } from '../context/useApp.js'
 import { useAuth } from '../context/useAuth.js'
 import { useTheme } from '../context/useTheme.js'
@@ -94,9 +95,7 @@ export default function AppLayout() {
 
         <div className="sidebar-bottom">
           <Link to="/profile" className="user-profile-pill" title={profile.name ? `${profile.name} (Profile)` : 'My profile'} aria-label="My profile">
-            <span className="sidebar-avatar">
-              {profile.name?.trim().charAt(0).toUpperCase() || 'K'}
-            </span>
+            <Avatar size={36} className="sidebar-avatar" />
             <div className="user-profile-info">
               <strong>{profile.name || 'Your kitchen'}</strong>
               <small>{user?.email ? 'Synced account' : 'Guest workspace'}</small>
@@ -175,8 +174,8 @@ export default function AppLayout() {
             </button>
 
             {/* User Avatar */}
-            <Link to="/profile" className="avatar-small" title={profile.name || user?.email || 'Profile'}>
-              {profile.name?.trim().charAt(0).toUpperCase() || 'K'}
+            <Link to="/profile" className="topbar-avatar-btn" title={profile.name || user?.email || 'Profile'} aria-label="My profile">
+              <Avatar size={34} className="avatar-small" />
             </Link>
           </div>
         </header>
@@ -238,7 +237,7 @@ export default function AppLayout() {
             </nav>
             <div className="mobile-drawer-footer">
               <div className="mobile-drawer-user">
-                <span className="sidebar-avatar">{profile.name?.trim().charAt(0).toUpperCase() || 'K'}</span>
+                <Avatar size={36} className="sidebar-avatar" />
                 <div>
                   <strong>{profile.name || 'Your kitchen'}</strong>
                   <small>{user?.email || 'Guest mode'}</small>

@@ -10,7 +10,7 @@ const GUEST_OWNER = 'guest'
 const CATALOG_CONNECTION_ERROR = 'Connect to Supabase to load the recipe catalog. Run npm run db:setup for the local database.'
 
 const initialState = {
-  profile: { name: '', phone: '', email: '', city: '', address: '', pinCode: '' },
+  profile: { name: '', phone: '', email: '', city: '', address: '', pinCode: '', avatar_url: '' },
   preferences: { foodType: 'No preference', cuisines: [], healthGoals: [], allergies: [], budget: 400, budgetScope: 'per person', maxTime: 60 },
   ingredients: [],
   pantryAlwaysAvailable: true,
@@ -74,12 +74,14 @@ function writeAccountCache(userId, cache) {
 
 function withAccountDetails(state, accountDetails) {
   const name = accountDetails.fullName?.trim()
+  const avatarUrl = accountDetails.avatarUrl?.trim()
   return {
     ...state,
     profile: {
       ...state.profile,
       name: state.profile.name || name || '',
       email: state.profile.email || accountDetails.email || '',
+      avatar_url: state.profile.avatar_url || avatarUrl || '',
     },
   }
 }
@@ -89,6 +91,7 @@ export function AppProvider({ children }) {
   const userId = user?.id || null
   const accountName = user?.user_metadata?.full_name
   const accountEmail = user?.email
+  const accountAvatar = user?.user_metadata?.avatar_url
   const [state, setState] = useState(readState)
   const [hydratedOwner, setHydratedOwner] = useState(GUEST_OWNER)
   const [dataReady, setDataReady] = useState(true)
@@ -190,7 +193,7 @@ export function AppProvider({ children }) {
         } else {
           nextState = cached?.state || readState()
         }
-        nextState = withAccountDetails(nextState, { fullName: accountName, email: accountEmail })
+        nextState = withAccountDetails(nextState, { fullName: accountName, email: accountEmail, avatarUrl: accountAvatar })
 
         if (!remote || cached?.dirty || JSON.stringify(remoteState) !== JSON.stringify(nextState)) {
           try {
@@ -226,7 +229,7 @@ export function AppProvider({ children }) {
       active = false
       window.clearTimeout(saveTimer.current)
     }
-  }, [accountEmail, accountName, client, loadAttempt, userId])
+  }, [accountAvatar, accountEmail, accountName, client, loadAttempt, userId])
 
   const persistAccountState = useCallback(async (nextState) => {
     if (!userId || !client || hydratedOwner !== userId || !dataReady) return
