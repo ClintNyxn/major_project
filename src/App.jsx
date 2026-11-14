@@ -2,6 +2,8 @@ import { HashRouter, Link, Navigate, Outlet, Route, Routes, useLocation, useNavi
 import { lazy, Suspense, useEffect, useState } from 'react'
 import { AppProvider } from './context/AppContext.jsx'
 import { AuthProvider } from './context/AuthContext.jsx'
+import { ThemeProvider } from './context/ThemeContext.jsx'
+import { ToastProvider } from './context/ToastContext.jsx'
 import { useAuth } from './context/useAuth.js'
 import { useApp } from './context/useApp.js'
 import AppLayout from './layouts/AppLayout.jsx'
@@ -151,44 +153,48 @@ function RequireAccess() {
 
 function App() {
   return (
-    <AuthProvider>
-      <AppProvider>
-        <HashRouter>
-        <RouteMetadata />
-        <Routes>
-          <Route path="/" element={<LandingRoute />} />
-          <Route path="/auth/signup" element={<AuthOnlyRoute><AuthPage mode="signup" /></AuthOnlyRoute>} />
-          <Route path="/auth/login" element={<AuthOnlyRoute><AuthPage mode="login" /></AuthOnlyRoute>} />
-          <Route path="/auth/forgot-password" element={<AuthOnlyRoute><AuthPage mode="forgot" /></AuthOnlyRoute>} />
-          <Route path="/auth/update-password" element={<AuthOnlyRoute requireUser><AuthPage mode="update-password" /></AuthOnlyRoute>} />
-          <Route element={<RequireAccess />}>
-            <Route path="/setup/profile" element={<ProfileSetup />} />
-            <Route path="/setup/preferences" element={<PreferencesSetup />} />
-            <Route path="/setup/ingredients" element={<IngredientsSetup />} />
-            <Route path="/setup/servings" element={<ServingsSetup />} />
-            <Route element={<AppLayout />}>
-              <Route path="/recommendations" element={<Recommendations />} />
-              <Route path="/recipe/:recipeId" element={<RecipeDetail />} />
-              <Route path="/dashboard" element={<Dashboard />} />
-              <Route path="/ingredients" element={<IngredientsPage />} />
-              <Route path="/preferences" element={<PreferencesPage />} />
-              <Route path="/favorites" element={<Favorites />} />
-              <Route path="/shopping" element={<Shopping />} />
-              <Route path="/profile" element={<Profile />} />
-              <Route path="/nearby" element={<Suspense fallback={<p className="route-loading" role="status">Loading nearby map…</p>}><Nearby /></Suspense>} />
-              <Route path="/compare" element={<Comparison />} />
-              <Route path="/help" element={<Help />} />
-              <Route path="/thank-you" element={<ThankYou />} />
-              <Route path="/privacy" element={<LegalPage />} />
-              <Route path="/terms" element={<LegalPage />} />
-            </Route>
-          </Route>
-          <Route path="/404" element={<NotFound />} />
-          <Route path="*" element={<UnknownRoute />} />
-        </Routes>
-        </HashRouter>
-      </AppProvider>
-    </AuthProvider>
+    <ThemeProvider>
+      <AuthProvider>
+        <AppProvider>
+          <ToastProvider>
+            <HashRouter>
+              <RouteMetadata />
+              <Routes>
+                <Route path="/" element={<LandingRoute />} />
+                <Route path="/auth/signup" element={<AuthOnlyRoute><AuthPage mode="signup" /></AuthOnlyRoute>} />
+                <Route path="/auth/login" element={<AuthOnlyRoute><AuthPage mode="login" /></AuthOnlyRoute>} />
+                <Route path="/auth/forgot-password" element={<AuthOnlyRoute><AuthPage mode="forgot" /></AuthOnlyRoute>} />
+                <Route path="/auth/update-password" element={<AuthOnlyRoute requireUser><AuthPage mode="update-password" /></AuthOnlyRoute>} />
+                <Route element={<RequireAccess />}>
+                  <Route path="/setup/profile" element={<ProfileSetup />} />
+                  <Route path="/setup/preferences" element={<PreferencesSetup />} />
+                  <Route path="/setup/ingredients" element={<IngredientsSetup />} />
+                  <Route path="/setup/servings" element={<ServingsSetup />} />
+                  <Route element={<AppLayout />}>
+                    <Route path="/recommendations" element={<Recommendations />} />
+                    <Route path="/recipe/:recipeId" element={<RecipeDetail />} />
+                    <Route path="/dashboard" element={<Dashboard />} />
+                    <Route path="/ingredients" element={<IngredientsPage />} />
+                    <Route path="/preferences" element={<PreferencesPage />} />
+                    <Route path="/favorites" element={<Favorites />} />
+                    <Route path="/shopping" element={<Shopping />} />
+                    <Route path="/profile" element={<Profile />} />
+                    <Route path="/nearby" element={<Suspense fallback={<p className="route-loading" role="status">Loading nearby map…</p>}><Nearby /></Suspense>} />
+                    <Route path="/compare" element={<Comparison />} />
+                    <Route path="/help" element={<Help />} />
+                    <Route path="/thank-you" element={<ThankYou />} />
+                    <Route path="/privacy" element={<LegalPage />} />
+                    <Route path="/terms" element={<LegalPage />} />
+                  </Route>
+                </Route>
+                <Route path="/404" element={<NotFound />} />
+                <Route path="*" element={<UnknownRoute />} />
+              </Routes>
+            </HashRouter>
+          </ToastProvider>
+        </AppProvider>
+      </AuthProvider>
+    </ThemeProvider>
   )
 }
 
