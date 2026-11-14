@@ -1,8 +1,9 @@
 import { Link } from 'react-router-dom'
+import Logo from './Logo.jsx'
 
 export default function OnboardingLayout({ step, title, description, children, backTo, onBack, onNext, nextLabel = 'Continue', nextDisabled = false }) {
   return <main className="onboarding-screen">
-    <header className="onboarding-topbar"><Link to="/" className="brand-lockup"><span className="brand-mark">K</span><span>KhaanaKya<span className="brand-question">?</span></span></Link><span className="step-count">STEP {step} OF 4</span></header>
+    <header className="onboarding-topbar"><Link to="/" className="brand-lockup"><Logo size={38} alt="KhaanaKya" /><span>KhaanaKya<span className="brand-question">?</span></span></Link><span className="step-count">STEP {step} OF 4</span></header>
     <div className="onboarding-progress"><span style={{ width: `${step * 25}%` }} /></div>
     <section className="onboarding-content">
       <p className="eyebrow">A better meal starts here</p>

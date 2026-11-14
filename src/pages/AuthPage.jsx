@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
+import Logo from '../components/Logo.jsx'
 import { useAuth } from '../context/useAuth.js'
 import { enterGuestMode } from '../utils/guestMode.js'
 import { authErrorMessage } from '../utils/authErrors.js'
@@ -109,7 +110,7 @@ export default function AuthPage({ mode }) {
 
   return <main className="auth-screen">
     <header className="auth-topbar">
-      <Link to="/" className="brand-lockup"><span className="brand-mark">K</span><span>KhaanaKya<span className="brand-question">?</span></span></Link>
+      <Link to="/" className="brand-lockup"><Logo size={48} alt="KhaanaKya" /><span>KhaanaKya<span className="brand-question">?</span></span></Link>
       <Link to="/" className="auth-home-link">Back to home</Link>
     </header>
     <div className="auth-content">

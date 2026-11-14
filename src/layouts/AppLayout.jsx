@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
+import Logo from '../components/Logo.jsx'
 import { useApp } from '../context/useApp.js'
 import { useAuth } from '../context/useAuth.js'
 import { useTheme } from '../context/useTheme.js'
@@ -63,7 +64,7 @@ export default function AppLayout() {
       <aside className="sidebar">
         <div className="sidebar-header">
           <Link to="/dashboard" className="brand-lockup" title="KhaanaKya? - Dashboard" aria-label="KhaanaKya? Dashboard">
-            <span className="brand-mark">K</span>
+            <Logo size={38} className="sidebar-brand-logo" alt="KhaanaKya" />
             <span className="brand-text">KhaanaKya<span className="brand-question">?</span></span>
           </Link>
           <span className="app-badge">Beta</span>
@@ -209,7 +210,7 @@ export default function AppLayout() {
           <div className="mobile-drawer-panel" onClick={(e) => e.stopPropagation()}>
             <div className="mobile-drawer-header">
               <Link to="/dashboard" className="brand-lockup" onClick={() => setMobileMenuOpen(false)}>
-                <span className="brand-mark">K</span>
+                <Logo size={36} alt="KhaanaKya" />
                 <span>KhaanaKya?</span>
               </Link>
               <button

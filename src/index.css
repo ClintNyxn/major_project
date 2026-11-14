@@ -195,6 +195,20 @@ input:focus, select:focus, textarea:focus {
   text-decoration: none;
 }
 
+.brand-logo {
+  display: block;
+  object-fit: contain;
+  border-radius: 22.6%;
+  flex-shrink: 0;
+  box-shadow: 0 2px 8px rgba(45, 74, 63, 0.2);
+  transition: width var(--transition-fast), height var(--transition-fast), margin var(--transition-fast), border-color var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+[data-theme='dark'] .brand-logo {
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
+}
+
 .brand-mark {
   width: 32px;
   height: 32px;
@@ -513,6 +527,21 @@ input:focus, select:focus, textarea:focus {
   min-width: 44px;
   height: 44px;
   gap: 0;
+}
+
+.sidebar .brand-logo {
+  width: 38px;
+  height: 38px;
+  margin: 0 3px;
+  flex-shrink: 0;
+  transition: width 220ms ease, height 220ms ease, margin 220ms ease;
+}
+
+.sidebar:hover .brand-logo,
+.sidebar:focus-within .brand-logo {
+  width: 40px;
+  height: 40px;
+  margin: 0;
 }
 
 .sidebar .brand-mark {

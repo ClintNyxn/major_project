@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom'
+import Logo from '../components/Logo.jsx'
 import { enterGuestMode } from '../utils/guestMode.js'
 import { SparklesIcon, ArrowRightIcon } from '../components/Icons.jsx'
 
@@ -11,7 +12,7 @@ export default function Welcome() {
     <main className="welcome-screen">
       <header className="welcome-topbar">
         <Link to="/" className="brand-lockup">
-          <span className="brand-mark">K</span>
+          <Logo size={42} alt="KhaanaKya" />
           <span className="brand-text">KhaanaKya<span className="brand-question">?</span></span>
         </Link>
         <div className="welcome-topbar-actions">

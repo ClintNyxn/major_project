@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" role="img" aria-label="KhaanaKya logo">
+  <rect width="512" height="512" rx="116" fill="#2D4A3F"/>
+  <circle cx="256" cy="256" r="128" fill="#F4ECDD"/>
+  <circle cx="256" cy="256" r="98" fill="none" stroke="#2D4A3F" stroke-width="4" opacity="0.25"/>
+  <path d="M256 196 C261 236 276 251 316 256 C276 261 261 276 256 316 C251 276 236 261 196 256 C236 251 251 236 256 196 Z" fill="#E08A5F"/>
+  <g stroke="#F4ECDD" stroke-width="11" stroke-linecap="round" fill="none">
+    <path d="M70 150 V204 M88 150 V204 M106 150 V204"/>
+    <path d="M70 204 Q70 232 88 232 Q106 232 106 204"/>
+    <path d="M88 232 V372" stroke-width="15"/>
+  </g>
+  <ellipse cx="426" cy="190" rx="27" ry="40" fill="#F4ECDD"/>
+  <path d="M426 228 V372" stroke="#F4ECDD" stroke-width="15" stroke-linecap="round"/>
+</svg>
+

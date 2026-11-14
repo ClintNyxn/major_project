@@ -1,6 +1,8 @@
 const { app, BrowserWindow } = require('electron')
 const path = require('node:path')
+const fs = require('node:fs')
 
+const iconPath = path.join(__dirname, '../build/icon.png')
 const authProtocol = 'khaanakya'
 const gotSingleInstanceLock = app.requestSingleInstanceLock()
 let mainWindow
@@ -56,6 +58,7 @@ function createWindow() {
     minWidth: 1024,
     minHeight: 700,
     backgroundColor: '#f4f0e7',
+    icon: iconPath,
     webPreferences: {
       contextIsolation: true,
       nodeIntegration: false,
@@ -85,6 +88,13 @@ if (gotSingleInstanceLock) {
   if (initialAuthUrl) pendingAuthUrls.push(initialAuthUrl)
 
   app.whenReady().then(() => {
+    if (process.platform === 'darwin' && app.dock && fs.existsSync(iconPath)) {
+      try {
+        app.dock.setIcon(iconPath)
+      } catch (err) {
+        console.warn('Could not set dock icon:', err.message)
+      }
+    }
     if (app.isPackaged) app.setAsDefaultProtocolClient(authProtocol)
     createWindow()
     app.on('activate', () => {
